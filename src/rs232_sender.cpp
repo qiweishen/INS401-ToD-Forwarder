@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <linux/serial.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -78,7 +79,10 @@ bool RS232Sender::Open() {
 
 void RS232Sender::Close() {
 	if (fd_ >= 0) {
-		::tcdrain(fd_);
+		// Use poll to wait for output to drain with a timeout,
+		// avoiding indefinite blocking from tcdrain().
+		pollfd pfd{fd_, POLLOUT, 0};
+		(void)::poll(&pfd, 1, 200);
 		::close(fd_);
 		fd_ = -1;
 	}
@@ -198,7 +202,6 @@ bool RS232Sender::SendGNZDA(const std::uint16_t gps_week, const std::uint32_t gp
 		return false;
 	}
 
-	::tcdrain(fd_);
 	return true;
 }
 
@@ -213,6 +216,5 @@ bool RS232Sender::SendRaw(const char *data, const std::size_t len) const {
 		return false;
 	}
 
-	::tcdrain(fd_);
 	return true;
 }

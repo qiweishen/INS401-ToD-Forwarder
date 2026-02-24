@@ -2,6 +2,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
@@ -19,6 +20,11 @@ namespace {
     std::atomic<bool> g_terminate{false};
 
     void SignalHandler(int) {
+        // Second signal: force immediate exit.
+        if (g_terminate.load(std::memory_order_relaxed)) {
+            std::fprintf(stderr, "\n[tod_forwarder] forced exit\n");
+            std::_Exit(1);
+        }
         g_terminate.store(true, std::memory_order_release);
     }
 
@@ -79,8 +85,12 @@ namespace {
 
 
 int main(int argc, char *argv[]) {
-    std::signal(SIGTERM, SignalHandler);
-    std::signal(SIGINT, SignalHandler);
+    struct sigaction sa{};
+    sa.sa_handler = SignalHandler;
+    sa.sa_flags = 0;  // No SA_RESTART: let syscalls return EINTR so threads unblock.
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGINT, &sa, nullptr);
 
     std::string config_path{kDefaultConfigPath};
     if (argc > 1) {
