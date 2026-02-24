@@ -15,6 +15,7 @@ sudo udevadm trigger
 
 sudo systemctl stop tod-forwarder.service || true
 sudo cp "$SCRIPT_DIR/build/tod_forwarder" /opt/qiweishen/
+sudo setcap cap_net_raw+ep /opt/qiweishen/tod_forwarder
 sudo cp "$SCRIPT_DIR/tod_forwarder-config.txt" /opt/qiweishen/
 sudo cp "$SCRIPT_DIR/tod-forwarder.service" /etc/systemd/system/tod-forwarder.service
 sudo systemctl daemon-reload
