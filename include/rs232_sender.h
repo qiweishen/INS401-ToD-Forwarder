@@ -9,7 +9,7 @@
 
 
 struct ForwarderConfig {
-	std::string serial_port = "/dev/ttyUSB0";
+	std::string serial_port = "/dev/ttyTOD";
 	int baud_rate = 115200;
 	bool use_gnss_packets = false;
 	int gps_utc_leap_seconds = 18;

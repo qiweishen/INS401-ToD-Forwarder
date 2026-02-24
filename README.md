@@ -20,7 +20,7 @@ By default, the application reads its configuration from:
 
 Supported keys in the config file:
 
-- **`serial_port`**: RS‑232 device path, e.g. `/dev/ttyUSB0`
+- **`serial_port`**: RS‑232 device path, e.g. `/dev/ttyTOD`
 - **`baud_rate`**: serial baud rate, e.g. `115200`
 - **`use_gnss_packets`**: `true`/`1` to enable GPS–UTC leap second compensation and generate `$GPZDA`; `false`/`0` to forward raw `$GNZDA`
 - **`gps_utc_leap_seconds`**: integer GPS–UTC leap second offset (e.g. `18`)
@@ -29,7 +29,7 @@ Example `config.txt`:
 
 ```ini
 # RS-232 output settings
-serial_port = /dev/ttyUSB0
+serial_port = /dev/ttyTOD
 baud_rate = 115200
 
 # Time-of-Day handling
@@ -77,44 +77,83 @@ sudo /opt/qiweishen/tod_forwarder/build/tod_forwarder /path/to/config.txt
 
 #### Run as a systemd service (autostart daemon)
 
-To run ToD Forwarder as a systemd service and start it automatically at boot, use the provided `tod-forwarder.service` unit:
+You can deploy and register ToD Forwarder as a systemd service so that it starts automatically at boot.  
+The repository provides a helper script `Amiga_Deployment.bash` plus a udev rule `99-tod.rules` and a ready‑to‑use service unit `tod-forwarder.service`.
 
-1. Copy the service file into the systemd unit directory:
+- **What the deployment script does (`Amiga_Deployment.bash`)**:
+  - Builds the project with CMake into `build/` and produces the `tod_forwarder` binary.
+  - Installs the udev rule `99-tod.rules` to `/etc/udev/rules.d/` so that the USB‑serial interface is exposed as `/dev/ttyTOD`:
 
-```bash
-sudo cp tod-forwarder.service /etc/systemd/system/tod-forwarder.service
-```
+    ```bash
+    SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A10JEHMR", SYMLINK+="ttyTOD"
+    ```
 
-2. Reload systemd to pick up the new unit:
+  - Reloads udev rules and triggers them so that `/dev/ttyTOD` appears.
+  - Copies the built binary and config file to `/opt/qiweishen/`:
 
-```bash
-sudo systemctl daemon-reload
-```
+    ```bash
+    sudo cp build/tod_forwarder /opt/qiweishen/
+    sudo cp tod_forwarder-config.txt /opt/qiweishen/
+    ```
 
-3. Enable the service so it starts automatically on boot:
+  - Installs the systemd service unit:
 
-```bash
-sudo systemctl enable tod-forwarder.service
-```
+    ```bash
+    sudo cp tod-forwarder.service /etc/systemd/system/tod-forwarder.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable tod-forwarder.service
+    sudo systemctl restart tod-forwarder.service
+    ```
 
-4. Start the service immediately:
+- **Config file used by the service**:
 
-```bash
-sudo systemctl start tod-forwarder.service
-```
+  The default configuration installed by the script is `tod_forwarder-config.txt`:
 
-5. Check the status and logs if needed:
+  ```ini
+  # INS401 ToD Serial Forwarder Configuration
+  serial_port = /dev/ttyTOD
+  baud_rate = 115200
+  use_gnss_packets = false
+  gps_utc_leap_seconds = 18
+  ```
 
-```bash
-sudo systemctl status tod-forwarder.service
-journalctl -u tod-forwarder.service -f
-```
+  - **`serial_port`** is set to the udev‑created symlink `/dev/ttyTOD`.
+  - Adjust `use_gnss_packets` and `gps_utc_leap_seconds` as needed, then restart the service.
 
-By default, the service runs:
+- **Service unit details (`tod-forwarder.service`)**:
 
-```bash
-/opt/qiweishen/tod_forwarder/build/tod_forwarder /opt/qiweishen/tod_forwarder/config.txt
-```
+  The installed systemd unit runs:
 
-and requests the `CAP_NET_RAW` capability required for raw Ethernet sockets.
+  ```bash
+  /opt/qiweishen/tod_forwarder /opt/qiweishen/tod_forwarder-config.txt
+  ```
+
+  and requests the `CAP_NET_RAW` capability required for raw Ethernet sockets:
+
+  ```ini
+  [Service]
+  Type=simple
+  ExecStart=/opt/qiweishen/tod_forwarder /opt/qiweishen/tod_forwarder-config.txt
+  Restart=on-failure
+  RestartSec=3
+  StandardOutput=journal
+  StandardError=journal
+  AmbientCapabilities=CAP_NET_RAW
+  ```
+
+- **Recommended one‑shot deployment flow**:
+
+  From the repository root:
+
+  ```bash
+  # Build and deploy binary, config, udev rule and systemd service
+  bash Amiga_Deployment.bash
+
+  # Verify the device symlink and service
+  ls -l /dev/ttyTOD
+  sudo systemctl status tod-forwarder.service
+  journalctl -u tod-forwarder.service -f
+  ```
+
+After this, ToD Forwarder will start automatically at boot as the `tod-forwarder.service` systemd unit and use `/dev/ttyTOD` as its RS‑232 output port.
 
