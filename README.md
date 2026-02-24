@@ -63,10 +63,10 @@ This will produce the `tod_forwarder` executable in the `build` directory (or si
 
 ```bash
 # Using the default config path /opt/qiweishen/tod_forwarder/config.txt
-sudo /opt/qiweishen/tod_forwarder/bin/tod_forwarder
+sudo /opt/qiweishen/tod_forwarder/build/tod_forwarder
 
 # Using a custom config file (CLI)
-sudo /opt/qiweishen/tod_forwarder/bin/tod_forwarder /path/to/config.txt
+sudo /opt/qiweishen/tod_forwarder/build/tod_forwarder /path/to/config.txt
 ```
 
 - **Discovery loop**: The program repeatedly discovers INS401 devices on all active non‑loopback interfaces, picks the first discovered device, and starts an `INSDeviceReceiver` for it.
@@ -113,7 +113,7 @@ journalctl -u tod-forwarder.service -f
 By default, the service runs:
 
 ```bash
-/opt/qiweishen/tod_forwarder/bin/tod_forwarder /opt/qiweishen/tod_forwarder/config.txt
+/opt/qiweishen/tod_forwarder/build/tod_forwarder /opt/qiweishen/tod_forwarder/config.txt
 ```
 
 and requests the `CAP_NET_RAW` capability required for raw Ethernet sockets.

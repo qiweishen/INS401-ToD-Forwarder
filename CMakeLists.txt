@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Threads REQUIRED)
 
 add_executable(tod_forwarder
-    main.cpp
+    src/main.cpp
     src/ethernet_socket.cpp
     src/ins401_discover.cpp
     src/ins401_receiver.cpp
@@ -22,5 +22,3 @@ target_include_directories(tod_forwarder PRIVATE
 target_link_libraries(tod_forwarder PRIVATE
     Threads::Threads
 )
-
-install(TARGETS tod_forwarder DESTINATION bin)
