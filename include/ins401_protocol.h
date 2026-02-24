@@ -28,15 +28,10 @@ inline constexpr std::uint16_t REQUEST_INFO_COMMAND = 0xCC01;
 
 
 [[nodiscard]] constexpr std::array<std::uint8_t, 2> ConvertUint16ToUint8(std::uint16_t value, EndianType type) {
-    return (type == EndianType::LSB)
-               ? std::array<std::uint8_t, 2>{
-                   static_cast<std::uint8_t>(value & 0xFF),
-                   static_cast<std::uint8_t>((value >> 8) & 0xFF)
-               }
-               : std::array<std::uint8_t, 2>{
-                   static_cast<std::uint8_t>((value >> 8) & 0xFF),
-                   static_cast<std::uint8_t>(value & 0xFF)
-               };
+	return (type == EndianType::LSB) ? std::array<std::uint8_t, 2>{ static_cast<std::uint8_t>(value & 0xFF),
+																	static_cast<std::uint8_t>((value >> 8) & 0xFF) }
+									 : std::array<std::uint8_t, 2>{ static_cast<std::uint8_t>((value >> 8) & 0xFF),
+																	static_cast<std::uint8_t>(value & 0xFF) };
 }
 
 

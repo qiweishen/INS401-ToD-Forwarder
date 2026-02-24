@@ -42,9 +42,7 @@ namespace {
 
 
 RS232Sender::RS232Sender(const ForwarderConfig &config) :
-	serial_port_(config.serial_port),
-	baud_rate_(config.baud_rate),
-	leap_seconds_(config.gps_utc_leap_seconds) {}
+	serial_port_(config.serial_port), baud_rate_(config.baud_rate), leap_seconds_(config.gps_utc_leap_seconds) {}
 
 
 RS232Sender::~RS232Sender() {
@@ -59,8 +57,7 @@ bool RS232Sender::Open() {
 
 	fd_ = ::open(serial_port_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (fd_ < 0) {
-		std::fprintf(stderr, "[tod_forwarder] ERROR: open(%s) failed: %s\n",
-		             serial_port_.c_str(), std::strerror(errno));
+		std::fprintf(stderr, "[tod_forwarder] ERROR: open(%s) failed: %s\n", serial_port_.c_str(), std::strerror(errno));
 		return false;
 	}
 
@@ -81,8 +78,8 @@ void RS232Sender::Close() {
 	if (fd_ >= 0) {
 		// Use poll to wait for output to drain with a timeout,
 		// avoiding indefinite blocking from tcdrain().
-		pollfd pfd{fd_, POLLOUT, 0};
-		(void)::poll(&pfd, 1, 200);
+		pollfd pfd{ fd_, POLLOUT, 0 };
+		(void) ::poll(&pfd, 1, 200);
 		::close(fd_);
 		fd_ = -1;
 	}
@@ -173,7 +170,7 @@ std::uint8_t RS232Sender::NmeaChecksum(const char *begin, const std::size_t len)
 }
 
 
-bool RS232Sender::SendGNZDA(const std::uint16_t gps_week, const std::uint32_t gps_millisecs) {
+bool RS232Sender::SendGNZDA(const std::uint16_t gps_week, const std::uint32_t gps_millisecs) const {
 	if (fd_ < 0) {
 		return false;
 	}
@@ -182,8 +179,8 @@ bool RS232Sender::SendGNZDA(const std::uint16_t gps_week, const std::uint32_t gp
 	int year, month, day, hour, minute, second, centisecond;
 	GpsTimeToUtc(gps_week, gps_millisecs, leap_seconds_, year, month, day, hour, minute, second, centisecond);
 
-	const int body_len = std::snprintf(buf + 1, sizeof(buf) - 1, "GPZDA,%02d%02d%02d.%02d,%02d,%02d,%04d,00,00", hour,
-									   minute, second, centisecond, day, month, year);
+	const int body_len = std::snprintf(buf + 1, sizeof(buf) - 1, "GNZDA,%02d%02d%02d.%02d,%02d,%02d,%04d,00,00", hour, minute, second,
+									   centisecond, day, month, year);
 	if (body_len <= 0 || body_len >= static_cast<int>(sizeof(buf) - 1)) {
 		return false;
 	}
