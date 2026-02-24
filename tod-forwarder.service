@@ -1,0 +1,16 @@
+[Unit]
+Description=INS401 ToD Serial Forwarder for Auto66 V2
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/qiweishen/tod_forwarder/bin/tod_forwarder /opt/qiweishen/tod_forwarder/config.txt
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+# Raw Ethernet sockets require CAP_NET_RAW
+AmbientCapabilities=CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

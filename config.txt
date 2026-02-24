@@ -1,0 +1,6 @@
+# INS401 ToD Serial Forwarder Configuration
+
+serial_port = /dev/ttyUSB0
+baud_rate = 115200
+use_gnss_packets = false
+gps_utc_leap_seconds = 18
