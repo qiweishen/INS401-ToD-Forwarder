@@ -1,7 +1,9 @@
 #include "ins401_discover.h"
 
 #include <chrono>
+#include <cstdio>
 #include <cstring>
+#include <exception>
 #include <sstream>
 #include <thread>
 
@@ -41,10 +43,14 @@ std::map<std::string, DeviceInfo> INSDeviceDiscover::DiscoverDevices(int discove
 }
 
 
-void INSDeviceDiscover::DiscoverOnInterface(const std::string &interface, const std::string &local_mac_str,
+void INSDeviceDiscover::DiscoverOnInterface(const std::string &interface, const std::string & /*local_mac_str*/,
                                             const int discovery_time_ms) {
     try {
         auto socket_ptr = std::make_shared<EthernetSocket>(interface, broadcast_mac_);
+        if (!socket_ptr->IsValid()) {
+            std::fprintf(stderr, "[tod_forwarder] WARNING: discovery socket invalid on %s\n", interface.c_str());
+            return;
+        }
         SendDiscoveryPing(socket_ptr);
 
         auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(discovery_time_ms);
@@ -55,7 +61,10 @@ void INSDeviceDiscover::DiscoverOnInterface(const std::string &interface, const 
                 HandleReceive(socket_ptr, response->data(), response->size());
             }
         }
+    } catch (const std::exception &e) {
+        std::fprintf(stderr, "[tod_forwarder] WARNING: discovery on %s failed: %s\n", interface.c_str(), e.what());
     } catch (...) {
+        std::fprintf(stderr, "[tod_forwarder] WARNING: discovery on %s failed with unknown error\n", interface.c_str());
     }
 }
 
@@ -92,13 +101,15 @@ bool INSDeviceDiscover::ParseResponse(const std::string &interface, const MacAdd
         return false;
     }
 
-    uint32_t aceinna_payload_len = buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID] |
-                                   (buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 1] << 8) |
-                                   (buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 2] << 16) |
-                                   (buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 3] << 24);
+    uint32_t aceinna_payload_len = static_cast<uint32_t>(buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID]) |
+                                   (static_cast<uint32_t>(buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 1]) << 8) |
+                                   (static_cast<uint32_t>(buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 2]) << 16) |
+                                   (static_cast<uint32_t>(buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 3]) << 24);
 
-    uint16_t received_crc = (buffer[kEthernetHeaderSize + ACEINNA_HEADER_LEN + aceinna_payload_len]) |
-                            (buffer[kEthernetHeaderSize + ACEINNA_HEADER_LEN + 1 + aceinna_payload_len] << 8);
+    if (kEthernetHeaderSize + ACEINNA_HEADER_LEN + aceinna_payload_len + 2 > len) return false;
+
+    uint16_t received_crc = static_cast<uint16_t>(buffer[kEthernetHeaderSize + ACEINNA_HEADER_LEN + aceinna_payload_len]) |
+                            (static_cast<uint16_t>(buffer[kEthernetHeaderSize + ACEINNA_HEADER_LEN + 1 + aceinna_payload_len]) << 8);
     uint16_t calculated_crc = Ethernet::CRC::CalculateINS401_CRC16(
         &buffer[kEthernetHeaderSize + 2], 6 + aceinna_payload_len);
     if (received_crc != calculated_crc) return false;

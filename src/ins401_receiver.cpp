@@ -1,5 +1,6 @@
 #include "ins401_receiver.h"
 
+#include <cstdio>
 #include <cstring>
 #include <utility>
 
@@ -18,6 +19,10 @@ INSDeviceReceiver::~INSDeviceReceiver() {
 
 
 void INSDeviceReceiver::Run() {
+    if (!socket_ptr_ || !socket_ptr_->IsValid()) {
+        std::fprintf(stderr, "[tod_forwarder] ERROR: receiver socket is invalid, cannot start\n");
+        return;
+    }
     running_.store(true);
     ReceiveLoop();
 }
@@ -34,45 +39,43 @@ void INSDeviceReceiver::ReceiveLoop() {
         if (frames.empty()) {
             auto response = socket_ptr_->Receive(100);
             if (response && !response->empty()) {
-                const auto *data = response->data();
-                const auto len = response->size();
-                if (len >= 60) {
-                    const uint8_t *packet = data + kEthernetHeaderSize;
-                    const std::size_t payload_max = len - kEthernetHeaderSize;
-                    if (packet[0] == COMMAND_START_BYTES[0] && packet[1] == COMMAND_START_BYTES[1]) {
-                        const uint16_t msg_id = packet[2] | (packet[3] << 8);
-                        const uint32_t payload_len = packet[4] | (packet[5] << 8) | (packet[6] << 16) | (packet[7] << 24);
-                        if (msg_id == GNSS_SOLUTION_PACKET_MESSAGE_ID && payload_len == GNSS_SOLUTION_PACKET_LENGTH) {
-                            HandleGNSSPacket(packet);
-                        }
-                    } else if (packet[0] == '$') {
-                        HandleNMEA(packet, payload_max);
-                    }
-                }
+                ProcessFrame(response->data(), response->size());
             }
         } else {
             for (const auto &frame : frames) {
-                if (frame.size() < 60) continue;
-                const uint8_t *packet = frame.data() + kEthernetHeaderSize;
-                const std::size_t payload_max = frame.size() - kEthernetHeaderSize;
-                if (packet[0] == COMMAND_START_BYTES[0] && packet[1] == COMMAND_START_BYTES[1]) {
-                    const uint16_t msg_id = packet[2] | (packet[3] << 8);
-                    const uint32_t payload_len = packet[4] | (packet[5] << 8) | (packet[6] << 16) | (packet[7] << 24);
-                    if (msg_id == GNSS_SOLUTION_PACKET_MESSAGE_ID && payload_len == GNSS_SOLUTION_PACKET_LENGTH) {
-                        HandleGNSSPacket(packet);
-                    }
-                } else if (packet[0] == '$') {
-                    HandleNMEA(packet, payload_max);
-                }
+                ProcessFrame(frame.data(), frame.size());
             }
         }
     }
 }
 
 
+void INSDeviceReceiver::ProcessFrame(const std::uint8_t *data, const std::size_t len) {
+    if (len < kEthernetHeaderSize + ACEINNA_HEADER_LEN) return;
+
+    const uint8_t *packet = data + kEthernetHeaderSize;
+    const std::size_t payload_max = len - kEthernetHeaderSize;
+
+    if (packet[0] == COMMAND_START_BYTES[0] && packet[1] == COMMAND_START_BYTES[1]) {
+        const uint16_t msg_id = static_cast<uint16_t>(packet[2]) | (static_cast<uint16_t>(packet[3]) << 8);
+        const uint32_t payload_len = static_cast<uint32_t>(packet[4]) | (static_cast<uint32_t>(packet[5]) << 8) |
+                                     (static_cast<uint32_t>(packet[6]) << 16) | (static_cast<uint32_t>(packet[7]) << 24);
+
+        // Verify the frame is large enough to hold the full Aceinna packet (header + payload + CRC)
+        if (ACEINNA_HEADER_LEN + payload_len + 2 > payload_max) return;
+
+        if (msg_id == GNSS_SOLUTION_PACKET_MESSAGE_ID && payload_len == GNSS_SOLUTION_PACKET_LENGTH) {
+            HandleGNSSPacket(packet);
+        }
+    } else if (packet[0] == '$') {
+        HandleNMEA(packet, payload_max);
+    }
+}
+
+
 void INSDeviceReceiver::HandleGNSSPacket(const std::uint8_t *packet) {
     constexpr std::size_t crc_offset = ACEINNA_HEADER_LEN + GNSS_SOLUTION_PACKET_LENGTH;
-    const uint16_t recv_crc = packet[crc_offset] | (packet[crc_offset + 1] << 8);
+    const uint16_t recv_crc = static_cast<uint16_t>(packet[crc_offset]) | (static_cast<uint16_t>(packet[crc_offset + 1]) << 8);
     const uint16_t calc_crc = Ethernet::CRC::CalculateINS401_CRC16(
         &packet[2], 2 + 4 + GNSS_SOLUTION_PACKET_LENGTH);
     if (recv_crc != calc_crc) return;

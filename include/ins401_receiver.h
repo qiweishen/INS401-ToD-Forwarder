@@ -50,6 +50,8 @@ private:
 
     void ReceiveLoop();
 
+    void ProcessFrame(const std::uint8_t *data, std::size_t len);
+
     void HandleGNSSPacket(const std::uint8_t *packet);
 
     void HandleNMEA(const std::uint8_t *data, std::size_t len);

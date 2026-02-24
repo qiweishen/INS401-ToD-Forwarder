@@ -47,9 +47,7 @@ private:
     int fd_ = -1;
     std::string serial_port_;
     int baud_rate_;
-	bool enable_compensation_;
     int leap_seconds_;
-    char fmt_buf_[64]{};
 
     [[nodiscard]] bool ConfigurePort() const;
 

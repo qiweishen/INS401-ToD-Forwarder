@@ -172,7 +172,7 @@ namespace Ethernet {
 
     namespace CRC {
         /// CRC-16/CCITT (poly 0x1021, init 0x1D0F). Returns byte-swapped per INS401 LSB-first wire format.
-        [[nodiscard]] uint16_t CalculateINS401_CRC16(const uint8_t *buf, const uint16_t &length);
+        [[nodiscard]] uint16_t CalculateINS401_CRC16(const uint8_t *buf, std::size_t length);
 
         /// CRC-24Q as defined by the RTCM3 standard (poly 0x1864CFB).
         [[nodiscard]] uint32_t CalculateRTCM3_CRC24(const void *data, std::size_t nBytes);

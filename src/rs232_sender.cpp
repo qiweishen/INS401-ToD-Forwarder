@@ -43,7 +43,6 @@ namespace {
 RS232Sender::RS232Sender(const ForwarderConfig &config) :
 	serial_port_(config.serial_port),
 	baud_rate_(config.baud_rate),
-	enable_compensation_(config.use_gnss_packets),
 	leap_seconds_(config.gps_utc_leap_seconds) {}
 
 
@@ -59,6 +58,8 @@ bool RS232Sender::Open() {
 
 	fd_ = ::open(serial_port_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (fd_ < 0) {
+		std::fprintf(stderr, "[tod_forwarder] ERROR: open(%s) failed: %s\n",
+		             serial_port_.c_str(), std::strerror(errno));
 		return false;
 	}
 
@@ -173,25 +174,26 @@ bool RS232Sender::SendGNZDA(const std::uint16_t gps_week, const std::uint32_t gp
 		return false;
 	}
 
+	char buf[64];
 	int year, month, day, hour, minute, second, centisecond;
 	GpsTimeToUtc(gps_week, gps_millisecs, leap_seconds_, year, month, day, hour, minute, second, centisecond);
 
-	const int body_len = std::snprintf(fmt_buf_ + 1, sizeof(fmt_buf_) - 1, "GPZDA,%02d%02d%02d.%02d,%02d,%02d,%04d,00,00", hour,
+	const int body_len = std::snprintf(buf + 1, sizeof(buf) - 1, "GPZDA,%02d%02d%02d.%02d,%02d,%02d,%04d,00,00", hour,
 									   minute, second, centisecond, day, month, year);
-	if (body_len <= 0 || body_len >= static_cast<int>(sizeof(fmt_buf_) - 1)) {
+	if (body_len <= 0 || body_len >= static_cast<int>(sizeof(buf) - 1)) {
 		return false;
 	}
 
-	fmt_buf_[0] = '$';
-	const std::uint8_t cs = NmeaChecksum(fmt_buf_ + 1, static_cast<std::size_t>(body_len));
+	buf[0] = '$';
+	const std::uint8_t cs = NmeaChecksum(buf + 1, static_cast<std::size_t>(body_len));
 
-	const int tail_len = std::snprintf(fmt_buf_ + 1 + body_len, sizeof(fmt_buf_) - 1 - body_len, "*%02X\r\n", cs);
+	const int tail_len = std::snprintf(buf + 1 + body_len, sizeof(buf) - 1 - body_len, "*%02X\r\n", cs);
 	if (tail_len <= 0) {
 		return false;
 	}
 
 	const std::size_t msg_len = 1 + body_len + tail_len;
-	const ssize_t written = ::write(fd_, fmt_buf_, msg_len);
+	const ssize_t written = ::write(fd_, buf, msg_len);
 	if (written < 0 || static_cast<std::size_t>(written) != msg_len) {
 		return false;
 	}

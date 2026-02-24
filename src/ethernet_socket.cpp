@@ -29,6 +29,11 @@ EthernetSocket::EthernetSocket(std::string interface_name, const MacAddress &tar
                                                         target_mac_(target_mac),
                                                         recv_buffer_size_(recv_buffer_size), enable_bpf_(enable_bpf) {
     CreateSocket();
+    if (socket_fd_ < 0) {
+        std::fprintf(stderr, "[tod_forwarder] ERROR: failed to create raw socket on %s: %s\n",
+                     interface_name_.c_str(), std::strerror(errno));
+        return;
+    }
     if (enable_bpf_) {
         Ethernet::SetupBpfFilter(target_mac_, local_mac_, socket_fd_);
     }
@@ -225,10 +230,9 @@ namespace Ethernet {
             BPF_STMT(BPF_RET | BPF_K, 0),
         };
 
-        sock_fprog prog = {
-            .len = static_cast<unsigned short>(std::size(filter)),
-            .filter = filter,
-        };
+        sock_fprog prog{};
+        prog.len = static_cast<unsigned short>(std::size(filter));
+        prog.filter = filter;
 
         return setsockopt(socket_fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)) >= 0;
     }
@@ -307,9 +311,9 @@ namespace Ethernet {
 
 
     namespace CRC {
-        uint16_t CalculateINS401_CRC16(const uint8_t *buf, const uint16_t &length) {
+        uint16_t CalculateINS401_CRC16(const uint8_t *buf, const std::size_t length) {
             uint16_t crc = 0x1D0F;
-            for (int i = 0; i < length; i++) {
+            for (std::size_t i = 0; i < length; i++) {
                 crc ^= buf[i] << 8;
                 for (int j = 0; j < 8; j++) {
                     if (crc & 0x8000) {
