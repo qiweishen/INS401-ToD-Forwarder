@@ -1,6 +1,35 @@
-# ToD Forwarder
+# ToD (Time of Day) Forwarder
 
 A lightweight Linux daemon that discovers **Aceinna INS401** devices over raw Ethernet and forwards their Time-of-Day information to **CoolShark AUTO66 V2** via RS-232 as NMEA time messages.
+
+<div align="center">
+  <img src="./resource/ins401.png" alt="Aceinna INS401" width="45%" height="250" />
+  <img src="./resource/auto66v2.jpg" alt="CoolShark AUTO66 V2" width="45%" height="250" />
+</div>
+
+---
+### Note on `$GNZDA` Sentence Compatibility
+
+During integration, we observed that the `$GNZDA` sentences output by the INS401 differ slightly from the standard NMEA-0183 format. Although the [INS401 User Manual](./resource/7430-4006-02_B_D8_INS401_UserManual.pdf) (accessed 2026-02-25 from [Aceinna official product page](https://navview.blob.core.windows.net/web-resources/7430-4006-02_B_D8_INS401_UserManual.pdf?_t=1720528226863); version: 7430-4006-02_B) documents the standard-compliant format, the actual output contains an additional comma before the checksum field, which may cause certain NMEA parsers to reject the sentence as malformed.
+
+<div align="center">
+  <img src="./resource/ins401_manual.png" alt="INS401 GNZDA format" width="60%" />
+  <br>
+  <em>Page 23 of Document Part Number: 7430-4006-02_B</em>
+</div>
+
+The expected NMEA-0183 `$--ZDA` format (see [Trimble NMEA-0183 reference of ZDA](https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_ZDA.html)):
+```
+$GNZDA,hhmmss.ss,dd,mm,yyyy,xx,yy*cc
+```
+
+Actual output from the INS401:
+```
+$GNZDA,hhmmss.ss,dd,mm,yyyy,xx,yy,*cc
+                                 ^ extra comma
+```
+
+Users who rely on strict NMEA parsers should be aware of this discrepancy and may need to handle it accordingly in their parsing logic. In this project, since the AUTO66 V2 receives standard-compliant `$--ZDA` sentences, we applied a simple fix to normalize the INS401 output to match the expected format.
 
 ---
 
@@ -181,7 +210,7 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{seria
 **Manual service management:**
 
 ```bash
-sudo systemctl status  tod-forwarder.service
+sudo systemctl status tod-forwarder.service
 sudo systemctl restart tod-forwarder.service
 journalctl -u tod-forwarder.service -f
 ```
@@ -203,7 +232,9 @@ The test suite verifies serial data forwarding correctness **without requiring a
                                                    └─────────┘
 ```
 
-![](./resource/rs232-pinout.webp)
+<div align="center">
+  <img src="./resource/rs232-pinout.webp" alt="INS401" width="60%" />
+</div>
 
 - Connect a **USB-A to DB9 (male)** (RS-232) adapter to the computer.
 - On the **DB9 (male) connector**, short **pin 2 (RXD)** to **pin 3 (TXD)** with a wire jumper to form a loopback.
@@ -328,7 +359,7 @@ This is the absolute minimum time to push all bits onto the wire. Measured laten
 The `Amiga_Deployment.bash` script performs a complete one-shot build and install:
 
 ```bash
-bash Amiga_Deployment.bash
+sudo ./Amiga_Deployment.bash
 ```
 
 **What it does:**
@@ -348,3 +379,12 @@ journalctl -u tod-forwarder.service -f
 ```
 
 After this, ToD Forwarder starts automatically at boot and uses `/dev/ttyTOD` as its RS-232 output port.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+
+### Attention:
+This project is a **proof-of-concept** and is not intended for production use without further testing and validation. It is provided "as-is" under the MIT License. Use at your own risk.
