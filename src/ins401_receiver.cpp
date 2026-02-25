@@ -187,9 +187,7 @@ void INSDeviceReceiver::HandleNMEA(const std::uint8_t *data, const std::size_t l
 		return;
 	}
 
-	char* zda = new char[sentence_len + 1];
-	size_t zda_len;
-	std::make_pair(zda, zda_len) = FormateZDA(str, sentence_len);
+	auto [zda, zda_len] = FormateZDA(str, sentence_len);
 
 	NmeaZdaCallback cb;
 	{
