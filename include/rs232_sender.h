@@ -38,10 +38,10 @@ public:
 
 	/// Format a $GNZDA sentence from GPS time and transmit it on the serial port.
 	/// Returns true if the full message was written successfully.
-	bool SendGNZDA(std::uint16_t gps_week, std::uint32_t gps_millisecs) const;
+	bool SendGNSSZDA(std::uint16_t gps_week, std::uint32_t gps_millisecs) const;
 
 	/// Write raw bytes to the serial port without any formatting or compensation.
-	bool SendRaw(const char *data, std::size_t len) const;
+	bool SendZDA(const char *data, std::size_t len) const;
 
 private:
 	int fd_ = -1;

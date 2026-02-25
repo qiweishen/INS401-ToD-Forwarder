@@ -170,7 +170,7 @@ std::uint8_t RS232Sender::NmeaChecksum(const char *begin, const std::size_t len)
 }
 
 
-bool RS232Sender::SendGNZDA(const std::uint16_t gps_week, const std::uint32_t gps_millisecs) const {
+bool RS232Sender::SendGNSSZDA(const std::uint16_t gps_week, const std::uint32_t gps_millisecs) const {
 	if (fd_ < 0) {
 		return false;
 	}
@@ -203,7 +203,7 @@ bool RS232Sender::SendGNZDA(const std::uint16_t gps_week, const std::uint32_t gp
 }
 
 
-bool RS232Sender::SendRaw(const char *data, const std::size_t len) const {
+bool RS232Sender::SendZDA(const char *data, const std::size_t len) const {
 	if (fd_ < 0 || !data || len == 0) {
 		return false;
 	}

@@ -122,9 +122,9 @@ int main(int argc, char *argv[]) {
 
 		auto receiver = std::make_unique<INSDeviceReceiver>(device.interface_name, device.mac_address);
 		if (config.use_gnss_packets) {
-			receiver->SetToDCallback([&sender](const std::uint16_t week, const std::uint32_t ms) { sender.SendGNZDA(week, ms); });
+			receiver->SetToDCallback([&sender](const std::uint16_t week, const std::uint32_t ms) { sender.SendGNSSZDA(week, ms); });
 		} else {
-			receiver->SetZDACallback([&sender](const char *data, const std::size_t len) { sender.SendRaw(data, len); });
+			receiver->SetZDACallback([&sender](const char *data, const std::size_t len) { sender.SendZDA(data, len); });
 		}
 
 		std::thread recv_thread([&receiver] { receiver->Run(); });
