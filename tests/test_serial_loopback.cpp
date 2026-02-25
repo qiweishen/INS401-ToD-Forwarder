@@ -6,7 +6,7 @@
 ///   - DB9 pin 2 (RX) connected to pin 3 (TX) to form a loopback
 ///
 /// These tests verify data forwarding correctness WITHOUT requiring an INS401 device.
-/// They exercise the RS232Sender class (open/close, SendRaw, SendGNZDA) and validate
+/// They exercise the RS232Sender class (open/close, SendZDA, SendGNSSZDA) and validate
 /// GNZDA format, NMEA checksum, GPS-to-UTC time conversion, and serial data integrity
 /// through the physical loopback.
 ///
@@ -211,7 +211,7 @@ bool test_sender_open_invalid_port() {
 }
 
 /// Edge cases: null pointer, zero length, closed port.
-bool test_sender_sendraw_edge_cases() {
+bool test_sender_sendzda_edge_cases() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
 	cfg.baud_rate = 115200;
@@ -219,22 +219,22 @@ bool test_sender_sendraw_edge_cases() {
 	RS232Sender sender(cfg);
 	TEST_ASSERT(sender.Open(), "Open() succeeds");
 
-	TEST_ASSERT(!sender.SendRaw(nullptr, 10), "null data rejected");
-	TEST_ASSERT(!sender.SendRaw("abc", 0), "zero length rejected");
+	TEST_ASSERT(!sender.SendZDA(nullptr, 10), "null data rejected");
+	TEST_ASSERT(!sender.SendZDA("abc", 0), "zero length rejected");
 
 	sender.Close();
-	TEST_ASSERT(!sender.SendRaw("abc", 3), "write on closed port rejected");
+	TEST_ASSERT(!sender.SendZDA("abc", 3), "write on closed port rejected");
 	return true;
 }
 
-/// SendGNZDA on a closed port must return false.
-bool test_sender_sendgnzda_closed_port() {
+/// SendGNSSZDA on a closed port must return false.
+bool test_sender_sendgnsszda_closed_port() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
 	cfg.baud_rate = 115200;
 
 	RS232Sender sender(cfg);
-	TEST_ASSERT(!sender.SendGNZDA(2348, 0), "SendGNZDA fails when closed");
+	TEST_ASSERT(!sender.SendGNSSZDA(2348, 0), "SendGNSSZDA fails when closed");
 	return true;
 }
 
@@ -256,7 +256,7 @@ bool test_raw_loopback_ascii() {
 	const char msg[] = "Hello, RS232 loopback!\r\n";
 	const std::size_t len = std::strlen(msg);
 
-	TEST_ASSERT(sender.SendRaw(msg, len), "SendRaw()");
+	TEST_ASSERT(sender.SendZDA(msg, len), "SendZDA()");
 
 	char rbuf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, rbuf, len, 1000);
@@ -281,7 +281,7 @@ bool test_raw_loopback_all_bytes() {
 	for (int i = 0; i < 256; ++i)
 		data[i] = static_cast<char>(i);
 
-	TEST_ASSERT(sender.SendRaw(data, 256), "SendRaw 256 bytes");
+	TEST_ASSERT(sender.SendZDA(data, 256), "SendZDA 256 bytes");
 
 	char rbuf[256] = {};
 	const ssize_t n = read_exact(sender.fd_, rbuf, 256, 2000);
@@ -310,7 +310,7 @@ bool test_raw_forward_nmea_sentence() {
 	TEST_ASSERT(slen > 0, "snprintf ok");
 
 	const auto len = static_cast<std::size_t>(slen);
-	TEST_ASSERT(sender.SendRaw(sentence, len), "SendRaw()");
+	TEST_ASSERT(sender.SendZDA(sentence, len), "SendZDA()");
 
 	char rbuf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, rbuf, len, 1000);
@@ -323,9 +323,9 @@ bool test_raw_forward_nmea_sentence() {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  Category 3 – SendGNZDA loopback + GPS→UTC conversion verification
+//  Category 3 – SendGNSSZDA loopback + GPS→UTC conversion verification
 //
-//  Each test calls SendGNZDA() with known GPS time inputs, reads the resulting
+//  Each test calls SendGNSSZDA() with known GPS time inputs, reads the resulting
 //  $GNZDA sentence back through the loopback, and checks that every field
 //  (hour, minute, second, centisecond, day, month, year) and the NMEA checksum
 //  are correct.
@@ -342,7 +342,7 @@ bool test_gnzda_gps_epoch() {
 	TEST_ASSERT(sender.Open(), "Open()");
 	flush_serial(sender.fd_);
 
-	TEST_ASSERT(sender.SendGNZDA(0, 0), "SendGNZDA(0,0)");
+	TEST_ASSERT(sender.SendGNSSZDA(0, 0), "SendGNSSZDA(0,0)");
 
 	char buf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, buf, 80, 1000);
@@ -371,7 +371,7 @@ bool test_gnzda_week2348_leap18() {
 	TEST_ASSERT(sender.Open(), "Open()");
 	flush_serial(sender.fd_);
 
-	TEST_ASSERT(sender.SendGNZDA(2348, 0), "SendGNZDA(2348,0)");
+	TEST_ASSERT(sender.SendGNSSZDA(2348, 0), "SendGNSSZDA(2348,0)");
 
 	char buf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, buf, 80, 1000);
@@ -399,7 +399,7 @@ bool test_gnzda_week2348_no_leap() {
 	TEST_ASSERT(sender.Open(), "Open()");
 	flush_serial(sender.fd_);
 
-	TEST_ASSERT(sender.SendGNZDA(2348, 0), "SendGNZDA(2348,0) no leap");
+	TEST_ASSERT(sender.SendGNSSZDA(2348, 0), "SendGNSSZDA(2348,0) no leap");
 
 	char buf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, buf, 80, 1000);
@@ -429,7 +429,7 @@ bool test_gnzda_centiseconds() {
 	TEST_ASSERT(sender.Open(), "Open()");
 	flush_serial(sender.fd_);
 
-	TEST_ASSERT(sender.SendGNZDA(2348, 12340), "SendGNZDA(2348,12340)");
+	TEST_ASSERT(sender.SendGNSSZDA(2348, 12340), "SendGNSSZDA(2348,12340)");
 
 	char buf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, buf, 80, 1000);
@@ -455,7 +455,7 @@ bool test_gnzda_midday() {
 	TEST_ASSERT(sender.Open(), "Open()");
 	flush_serial(sender.fd_);
 
-	TEST_ASSERT(sender.SendGNZDA(2348, 43200000), "SendGNZDA mid-day");
+	TEST_ASSERT(sender.SendGNSSZDA(2348, 43200000), "SendGNSSZDA mid-day");
 
 	char buf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, buf, 80, 1000);
@@ -485,7 +485,7 @@ bool test_gnzda_end_of_week() {
 	TEST_ASSERT(sender.Open(), "Open()");
 	flush_serial(sender.fd_);
 
-	TEST_ASSERT(sender.SendGNZDA(2348, 604799000), "SendGNZDA end-of-week");
+	TEST_ASSERT(sender.SendGNSSZDA(2348, 604799000), "SendGNSSZDA end-of-week");
 
 	char buf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, buf, 80, 1000);
@@ -515,7 +515,7 @@ bool test_gnzda_late_january() {
 	TEST_ASSERT(sender.Open(), "Open()");
 	flush_serial(sender.fd_);
 
-	TEST_ASSERT(sender.SendGNZDA(2351, 259200000), "SendGNZDA late-jan");
+	TEST_ASSERT(sender.SendGNSSZDA(2351, 259200000), "SendGNSSZDA late-jan");
 
 	char buf[128] = {};
 	const ssize_t n = read_exact(sender.fd_, buf, 80, 1000);
@@ -551,7 +551,7 @@ bool test_multiple_gnzda_burst() {
 	constexpr int kCount = 10;
 	for (int i = 0; i < kCount; ++i) {
 		const std::uint32_t ms = static_cast<std::uint32_t>(i) * 1000000;  // 0, 1000 s, …
-		TEST_ASSERT(sender.SendGNZDA(2348, ms), "SendGNZDA burst");
+		TEST_ASSERT(sender.SendGNSSZDA(2348, ms), "SendGNSSZDA burst");
 	}
 
 	// Give the loopback a moment to deliver everything
@@ -600,9 +600,9 @@ bool test_interleaved_raw_and_gnzda() {
 	TEST_ASSERT(rlen > 0, "snprintf raw NMEA");
 
 	// Send: raw NMEA → GNZDA(binary) → raw NMEA
-	TEST_ASSERT(sender.SendRaw(raw_nmea, static_cast<std::size_t>(rlen)), "raw #1");
-	TEST_ASSERT(sender.SendGNZDA(2348, 0), "gnzda");
-	TEST_ASSERT(sender.SendRaw(raw_nmea, static_cast<std::size_t>(rlen)), "raw #2");
+	TEST_ASSERT(sender.SendZDA(raw_nmea, static_cast<std::size_t>(rlen)), "raw #1");
+	TEST_ASSERT(sender.SendGNSSZDA(2348, 0), "gnzda");
+	TEST_ASSERT(sender.SendZDA(raw_nmea, static_cast<std::size_t>(rlen)), "raw #2");
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -648,7 +648,7 @@ static bool loopback_at_baud(int baud, int timeout_ms) {
 
 	const char msg[] = "$GNZDA,baud-rate-test\r\n";
 	const std::size_t len = std::strlen(msg);
-	TEST_ASSERT(sender.SendRaw(msg, len), "SendRaw()");
+	TEST_ASSERT(sender.SendZDA(msg, len), "SendZDA()");
 
 	char rbuf[64] = {};
 	const ssize_t n = read_exact(sender.fd_, rbuf, len, timeout_ms);
@@ -679,7 +679,7 @@ bool test_baud_230400() {
 //  Simulates real-world forwarding and measures end-to-end delay through the
 //  physical loopback.  Three timing points per message:
 //
-//      t0  = before SendGNZDA() / SendRaw()       (includes GPS→UTC + format)
+//      t0  = before SendGNSSZDA() / SendZDA()       (includes GPS→UTC + format)
 //      t1  = poll(POLLIN) returns                  (first byte arrived back)
 //      t2  = all bytes read                        (full sentence received)
 //
@@ -740,8 +740,8 @@ static void print_stats(const char *label, const LatencyStats &s) {
 	             label, s.min_ms, s.avg_ms, s.median_ms, s.max_ms, s.samples);
 }
 
-/// Measure SendRaw() round-trip latency (direct-forward mode simulation).
-bool test_latency_sendraw() {
+/// Measure SendZDA() round-trip latency (direct-forward mode simulation).
+bool test_latency_sendzda() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
 	cfg.baud_rate   = 115200;
@@ -763,7 +763,7 @@ bool test_latency_sendraw() {
 		flush_serial(sender.fd_);
 
 		const auto t0 = Clock::now();
-		sender.SendRaw(sentence, len);
+		sender.SendZDA(sentence, len);
 
 		// Wait for first byte to arrive back through loopback
 		pollfd pfd{sender.fd_, POLLIN, 0};
@@ -790,7 +790,7 @@ bool test_latency_sendraw() {
 	// Theory: N bytes * 10 bits/byte / baud  (8N1 framing = 1 start + 8 data + 1 stop)
 	const double theory_ms = static_cast<double>(len) * 10.0 / 115200.0 * 1e3;
 	std::fprintf(stderr, "\n");
-	std::fprintf(stderr, "    SendRaw() latency @ 115200 baud, %d-byte $GNZDA:\n", slen);
+	std::fprintf(stderr, "    SendZDA() latency @ 115200 baud, %d-byte $GNZDA:\n", slen);
 	print_stats("First byte arrival:", fb);
 	print_stats("Full message round-trip:", fm);
 	std::fprintf(stderr, "    Theory wire time (1-way, 8N1):    %.2f ms  (%d bytes * 10 bits / 115200 baud)\n",
@@ -800,9 +800,9 @@ bool test_latency_sendraw() {
 	return true;
 }
 
-/// Measure SendGNZDA() end-to-end latency (GNSS compensation mode simulation).
+/// Measure SendGNSSZDA() end-to-end latency (GNSS compensation mode simulation).
 /// This includes GPS→UTC conversion + NMEA formatting + serial TX + loopback RX.
-bool test_latency_sendgnzda() {
+bool test_latency_sendgnsszda() {
 	ForwarderConfig cfg;
 	cfg.serial_port          = g_serial_port;
 	cfg.baud_rate            = 115200;
@@ -818,7 +818,7 @@ bool test_latency_sendgnzda() {
 		flush_serial(sender.fd_);
 
 		const auto t0 = Clock::now();
-		sender.SendGNZDA(2348, static_cast<std::uint32_t>(i) * 1000);
+		sender.SendGNSSZDA(2348, static_cast<std::uint32_t>(i) * 1000);
 
 		pollfd pfd{sender.fd_, POLLIN, 0};
 		::poll(&pfd, 1, 2000);
@@ -841,7 +841,7 @@ bool test_latency_sendgnzda() {
 	auto fm = compute_stats(full_msg_ms);
 
 	std::fprintf(stderr, "\n");
-	std::fprintf(stderr, "    SendGNZDA() latency @ 115200 baud (GPS->UTC + format + TX + loopback):\n");
+	std::fprintf(stderr, "    SendGNSSZDA() latency @ 115200 baud (GPS->UTC + format + TX + loopback):\n");
 	print_stats("First byte arrival:", fb);
 	print_stats("Full message round-trip:", fm);
 
@@ -855,7 +855,7 @@ bool test_latency_baud_comparison() {
 	constexpr BaudEntry bauds[] = {{9600, 5000}, {38400, 3000}, {115200, 2000}, {230400, 2000}};
 
 	std::fprintf(stderr, "\n");
-	std::fprintf(stderr, "    Baud rate comparison – SendGNZDA() first-byte latency (8N1 framing):\n");
+	std::fprintf(stderr, "    Baud rate comparison – SendGNSSZDA() first-byte latency (8N1 framing):\n");
 	std::fprintf(stderr, "    %-10s %8s %8s %8s %8s   %s\n",
 	             "Baud", "Min", "Avg", "Median", "Max", "Theory(1-way)");
 	std::fprintf(stderr, "    ────────── ──────── ──────── ──────── ────────   ─────────────\n");
@@ -879,7 +879,7 @@ bool test_latency_baud_comparison() {
 			flush_serial(sender.fd_);
 
 			const auto t0 = Clock::now();
-			sender.SendGNZDA(2348, static_cast<std::uint32_t>(i) * 1000);
+			sender.SendGNSSZDA(2348, static_cast<std::uint32_t>(i) * 1000);
 
 			pollfd pfd{sender.fd_, POLLIN, 0};
 			::poll(&pfd, 1, timeout);
@@ -921,7 +921,7 @@ bool test_latency_burst() {
 
 	for (int i = 0; i < kCount; ++i) {
 		const auto t0 = Clock::now();
-		sender.SendGNZDA(2348, static_cast<std::uint32_t>(i) * 1000000);
+		sender.SendGNSSZDA(2348, static_cast<std::uint32_t>(i) * 1000000);
 
 		// Wait for the complete sentence to arrive
 		char rbuf[128] = {};
@@ -939,7 +939,7 @@ bool test_latency_burst() {
 	auto s = compute_stats(per_msg_ms);
 
 	std::fprintf(stderr, "\n");
-	std::fprintf(stderr, "    Burst latency @ 115200 (%d back-to-back SendGNZDA):\n", kCount);
+	std::fprintf(stderr, "    Burst latency @ 115200 (%d back-to-back SendGNSSZDA):\n", kCount);
 	print_stats("Per-message round-trip:", s);
 	std::fprintf(stderr, "    Total burst time:                 %.2f ms\n", s.avg_ms * kCount);
 	std::fprintf(stderr, "    Effective throughput:              %.1f msgs/sec\n",
@@ -988,8 +988,8 @@ int main(int argc, char *argv[]) {
 	std::fprintf(stderr, "-- RS232Sender class tests --\n");
 	RUN_TEST(test_sender_open_close);
 	RUN_TEST(test_sender_open_invalid_port);
-	RUN_TEST(test_sender_sendraw_edge_cases);
-	RUN_TEST(test_sender_sendgnzda_closed_port);
+	RUN_TEST(test_sender_sendzda_edge_cases);
+	RUN_TEST(test_sender_sendgnsszda_closed_port);
 
 	// ── Category 2: Raw data loopback ──
 	std::fprintf(stderr, "\n-- Raw data loopback tests --\n");
@@ -1021,8 +1021,8 @@ int main(int argc, char *argv[]) {
 
 	// ── Category 6: Latency benchmarks ──
 	std::fprintf(stderr, "\n-- Latency benchmarks --\n");
-	RUN_TEST(test_latency_sendraw);
-	RUN_TEST(test_latency_sendgnzda);
+	RUN_TEST(test_latency_sendzda);
+	RUN_TEST(test_latency_sendgnsszda);
 	RUN_TEST(test_latency_baud_comparison);
 	RUN_TEST(test_latency_burst);
 
