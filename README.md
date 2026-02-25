@@ -3,8 +3,8 @@
 A lightweight Linux daemon that discovers **Aceinna INS401** devices over raw Ethernet and forwards their Time-of-Day information to **CoolShark AUTO66 V2** via RS-232 as NMEA time messages.
 
 <div align="center">
-  <img src="./resource/ins401.png" alt="Aceinna INS401" width="45%" height="250" />
-  <img src="./resource/auto66v2.jpg" alt="CoolShark AUTO66 V2" width="45%" height="250" />
+  <img src="./resource/ins401.png" alt="Aceinna INS401" width="45%" height="280" />
+  <img src="./resource/auto66v2.jpg" alt="CoolShark AUTO66 V2" width="45%" height="280" />
 </div>
 
 ---
@@ -49,6 +49,7 @@ Users who rely on strict NMEA parsers should be aware of this discrepancy and ma
   - [Build and Run Tests](#build-and-run-tests)
   - [Test Categories](#test-categories)
 - [Deployment](#deployment)
+- [License](#license)
 
 ---
 
@@ -83,6 +84,7 @@ INS401-ToD-Forwarder/
 │   ├── ins401_protocol.h        # Protocol constants and helpers
 │   ├── ins401_receiver.h        # GNSS/NMEA frame receiver
 │   └── rs232_sender.h           # RS-232 sender + GPS→UTC conversion
+├── resource/
 ├── src/
 │   ├── main.cpp                 # Entry point, config parsing, main loop
 │   ├── ethernet_socket.cpp
@@ -151,7 +153,7 @@ serial_port = /dev/ttyTOD
 baud_rate = 115200
 
 # Time-of-Day handling
-use_gnss_packets = true
+use_gnss_packets = false
 gps_utc_leap_seconds = 18
 ```
 

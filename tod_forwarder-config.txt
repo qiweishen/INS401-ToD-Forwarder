@@ -1,6 +1,9 @@
 # INS401 ToD Serial Forwarder Configuration
 
+# RS-232 output settings
 serial_port = /dev/ttyTOD
 baud_rate = 115200
+
+# Time-of-Day handling
 use_gnss_packets = false
 gps_utc_leap_seconds = 18
