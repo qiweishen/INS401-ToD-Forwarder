@@ -105,14 +105,16 @@ bool INSDeviceDiscover::ParseResponse(const std::string &interface, const MacAdd
 								   (static_cast<uint32_t>(buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 2]) << 16) |
 								   (static_cast<uint32_t>(buffer[kEthernetHeaderSize + ACEINNA_PRE_AND_ID + 3]) << 24);
 
-	if (kEthernetHeaderSize + ACEINNA_HEADER_LEN + aceinna_payload_len + 2 > len)
+	if (kEthernetHeaderSize + ACEINNA_HEADER_LEN + aceinna_payload_len + 2 > len) {
 		return false;
+	}
 
 	uint16_t received_crc = static_cast<uint16_t>(buffer[kEthernetHeaderSize + ACEINNA_HEADER_LEN + aceinna_payload_len]) |
 							(static_cast<uint16_t>(buffer[kEthernetHeaderSize + ACEINNA_HEADER_LEN + 1 + aceinna_payload_len]) << 8);
 	uint16_t calculated_crc = Ethernet::CRC::CalculateINS401_CRC16(&buffer[kEthernetHeaderSize + 2], 6 + aceinna_payload_len);
-	if (received_crc != calculated_crc)
+	if (received_crc != calculated_crc) {
 		return false;
+	}
 
 	DeviceInfo info;
 	info.interface_name = interface;
