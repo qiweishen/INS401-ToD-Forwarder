@@ -10,7 +10,7 @@
 #include "ins401_protocol.h"
 
 
-INSDeviceDiscover::INSDeviceDiscover() {
+INSDeviceDiscover::INSDeviceDiscover(std::atomic<bool> *external_stop) : external_stop_(external_stop) {
 	broadcast_mac_ = Ethernet::FormatMACAddress(std::string{ BROADCAST_MAC });
 }
 
@@ -54,7 +54,8 @@ void INSDeviceDiscover::DiscoverOnInterface(const std::string &interface, const 
 
 		auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(discovery_time_ms);
 
-		while (running_.load() && std::chrono::steady_clock::now() < deadline) {
+		while (running_.load() && !(external_stop_ && external_stop_->load(std::memory_order_acquire)) &&
+			   std::chrono::steady_clock::now() < deadline) {
 			auto response = socket_ptr->Receive(100);
 			if (response && !response->empty()) {
 				HandleReceive(socket_ptr, response->data(), response->size());

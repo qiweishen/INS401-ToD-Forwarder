@@ -30,7 +30,7 @@ struct DeviceInfo {
 
 class INSDeviceDiscover {
 public:
-	INSDeviceDiscover();
+	explicit INSDeviceDiscover(std::atomic<bool> *external_stop = nullptr);
 
 	~INSDeviceDiscover();
 
@@ -42,6 +42,8 @@ private:
 	std::mutex devices_mutex_;
 
 	std::atomic<bool> running_{ false };
+
+	std::atomic<bool> *external_stop_{ nullptr };
 
 	std::array<uint8_t, 6> broadcast_mac_{};
 

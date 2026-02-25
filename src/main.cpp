@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 	std::fprintf(stderr, "[tod_forwarder] serial port %s opened\n", config.serial_port.c_str());
 
 	while (!g_terminate.load(std::memory_order_acquire)) {
-		INSDeviceDiscover discover;
+		INSDeviceDiscover discover(&g_terminate);
 		auto devices = discover.DiscoverDevices();
 		if (devices.empty()) {
 			for (int i = 0; i < 5 && !g_terminate.load(std::memory_order_acquire); ++i) {
