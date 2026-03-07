@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/qiweishen/tod_forwarder /opt/qiweishen/tod_forwarder-config.txt
+ExecStart=/opt/tod_forwarder/tod_forwarder /opt/tod_forwarder/tod_forwarder-config.txt
 Restart=on-failure
 RestartSec=3
 StandardOutput=journal

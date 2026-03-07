@@ -1,6 +1,6 @@
 # ToD (Time of Day) Forwarder
 
-A lightweight Linux daemon that discovers **Aceinna INS401** devices over raw Ethernet and forwards their Time-of-Day information to **CoolShark AUTO66 V2** via RS-232 as NMEA time messages.
+A lightweight Linux daemon that discovers [**Aceinna INS401**](https://www.aceinna.com/inertial-systems/INS401) devices over raw Ethernet and forwards their Time-of-Day information to [**CoolShark AUTO66 V2**](https://www.coolshark.com/products/AUTOV3.html) via RS-232 as NMEA time messages.
 
 <div align="center">
   <img src="./resource/ins401.png" alt="Aceinna INS401" width="45%" height="280" />
@@ -95,8 +95,8 @@ INS401-ToD-Forwarder/
 │   └── test_serial_loopback.cpp # Serial loopback test suite (no INS401 needed)
 ├── 99-tod.rules                 # udev rule for /dev/ttyTOD symlink
 ├── tod-forwarder.service        # systemd service unit
-├── tod_forwarder-config.txt     # Default configuration file
-├── Amiga_Deployment.bash        # One-shot build + deploy script
+├── tod-forwarder-config.txt     # Default configuration file
+├── Deployment.bash              # One-shot build + deploy script
 ├── CMakeLists.txt
 ├── LICENSE
 └── README.md
@@ -134,7 +134,7 @@ This produces two executables in the `build/` directory:
 
 ## Configuration
 
-The application reads a plain-text configuration file. If no path is provided on the command line, it defaults to `/opt/qiweishen/tod_forwarder-config.txt`.
+The application reads a plain-text configuration file. If no path is provided on the command line, it defaults to `../tod-forwarder-config.txt`.
 
 ### Supported Keys
 
@@ -192,7 +192,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/qiweishen/tod_forwarder /opt/qiweishen/tod_forwarder-config.txt
+ExecStart=/opt/tod_forwarder/tod_forwarder /opt/tod_forwarder/tod-forwarder-config.txt
 Restart=on-failure
 RestartSec=3
 StandardOutput=journal
@@ -358,18 +358,18 @@ This is the absolute minimum time to push all bits onto the wire. Measured laten
 
 ## Deployment
 
-The `Amiga_Deployment.bash` script performs a complete one-shot build and install:
+The `Deployment.bash` script performs a complete one-shot build and install:
 
 ```bash
-sudo ./Amiga_Deployment.bash
+sudo ./Deployment.bash
 ```
 
 **What it does:**
 
 1. Cleans and rebuilds the project with CMake.
 2. Installs the udev rule `99-tod.rules` to `/etc/udev/rules.d/` and reloads udev so `/dev/ttyTOD` appears.
-3. Copies the binary to `/opt/qiweishen/` and sets `CAP_NET_RAW` capability.
-4. Copies the default config `tod_forwarder-config.txt` to `/opt/qiweishen/`.
+3. Cleans and copies the binary to `/opt/tod_forwarder/` and sets `CAP_NET_RAW` capability.
+4. Copies the default config `tod-forwarder-config.txt` to `/opt/tod_forwarder/`.
 5. Installs, enables, and starts the `tod-forwarder.service` systemd unit.
 
 **Post-deployment verification:**

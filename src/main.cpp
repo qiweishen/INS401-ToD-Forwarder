@@ -15,7 +15,7 @@
 
 
 namespace {
-	constexpr std::string_view kDefaultConfigPath = "/opt/qiweishen/tod_forwarder-config.txt";
+	constexpr std::string_view kDefaultConfigPath = "../tod-forwarder-config.txt";
 
 	std::atomic<bool> g_terminate{ false };
 
