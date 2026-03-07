@@ -54,7 +54,7 @@ private:
 
 	void HandleGNSSPacket(const std::uint8_t *packet);
 
-	static std::pair<char*, size_t> FormateZDA(const char* input, size_t input_len);
+	static std::pair<char *, size_t> FormateStandardZDA(const char *input, size_t input_len);
 
 	void HandleNMEA(const std::uint8_t *data, std::size_t len);
 };

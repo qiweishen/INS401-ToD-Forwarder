@@ -102,20 +102,20 @@ void INSDeviceReceiver::HandleGNSSPacket(const std::uint8_t *packet) {
 }
 
 
-std::pair<char*, size_t> INSDeviceReceiver::FormateZDA(const char* input, size_t input_len) {
+std::pair<char *, size_t> INSDeviceReceiver::FormateStandardZDA(const char *input, size_t input_len) {
 	// Find '*' position
 	const char *asterisk = static_cast<const char *>(std::memchr(input, '*', input_len));
 	size_t body_len = asterisk - input;
 
 	// Allocate output buffer
-	char* output = new char[input_len + 1];
+	char *output = new char[input_len + 1];
 	size_t output_len;
 
 	// Check if there's a trailing comma before '*'
 	if (input[body_len - 1] != ',') {
 		std::memcpy(output, input, input_len);
 		output_len = input_len;
-		return {output, output_len};
+		return { output, output_len };
 	}
 
 	// Copy body without the trailing comma
@@ -132,7 +132,7 @@ std::pair<char*, size_t> INSDeviceReceiver::FormateZDA(const char* input, size_t
 	std::snprintf(output + new_body_len, 5, "*%02X", calc_cs);
 	output_len = new_body_len + 3;
 
-	return {output, output_len};
+	return { output, output_len };
 }
 
 
@@ -187,7 +187,7 @@ void INSDeviceReceiver::HandleNMEA(const std::uint8_t *data, const std::size_t l
 		return;
 	}
 
-	auto [zda, zda_len] = FormateZDA(str, sentence_len);
+	auto [zda, zda_len] = FormateStandardZDA(str, sentence_len);
 
 	NmeaZdaCallback cb;
 	{

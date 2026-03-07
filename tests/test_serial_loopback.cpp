@@ -33,10 +33,8 @@
 #include <cstring>
 #include <fcntl.h>
 #include <glob.h>
-#include <linux/serial.h>
 #include <poll.h>
 #include <string>
-#include <sys/ioctl.h>
 #include <termios.h>
 #include <thread>
 #include <unistd.h>
@@ -60,6 +58,7 @@ static std::string g_serial_port;
 		}                                                                      \
 	} while (0)
 
+
 #define TEST_ASSERT_EQ(actual, expected, msg)                                                                          \
 	do {                                                                                                               \
 		if ((actual) != (expected)) {                                                                                  \
@@ -68,6 +67,7 @@ static std::string g_serial_port;
 			return false;                                                                                              \
 		}                                                                                                              \
 	} while (0)
+
 
 #define RUN_TEST(func)                                  \
 	do {                                                \
@@ -87,7 +87,7 @@ static std::string g_serial_port;
 //  Helper utilities
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Read from fd with a poll()-based timeout.  Returns bytes read, 0 on timeout, -1 on error.
+// Read from fd with a poll()-based timeout.  Returns bytes read, 0 on timeout, -1 on error.
 static ssize_t read_with_timeout(int fd, void *buf, std::size_t count, int timeout_ms) {
 	pollfd pfd{ fd, POLLIN, 0 };
 	const int ret = ::poll(&pfd, 1, timeout_ms);
@@ -97,7 +97,8 @@ static ssize_t read_with_timeout(int fd, void *buf, std::size_t count, int timeo
 	return ::read(fd, buf, count);
 }
 
-/// Keep reading until exactly @p count bytes arrive or timeout expires.
+
+// Keep reading until exactly @p count bytes arrive or timeout expires.
 static ssize_t read_exact(int fd, void *buf, std::size_t count, int timeout_ms) {
 	const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
 	std::size_t total = 0;
@@ -120,7 +121,8 @@ static ssize_t read_exact(int fd, void *buf, std::size_t count, int timeout_ms) 
 	return static_cast<ssize_t>(total);
 }
 
-/// Drain any stale data sitting in the serial RX buffer.
+
+// Drain any stale data sitting in the serial RX buffer.
 static void flush_serial(int fd) {
 	::tcflush(fd, TCIOFLUSH);
 	char junk[256];
@@ -128,16 +130,19 @@ static void flush_serial(int fd) {
 	}
 }
 
-/// Independent NMEA checksum: XOR every byte in [begin, begin+len).
+
+// Independent NMEA checksum: XOR every byte in [begin, begin+len).
 static std::uint8_t nmea_xor(const char *begin, std::size_t len) {
 	std::uint8_t cs = 0;
-	for (std::size_t i = 0; i < len; ++i)
+	for (std::size_t i = 0; i < len; ++i) {
 		cs ^= static_cast<std::uint8_t>(begin[i]);
+	}
 	return cs;
 }
 
-/// Validate a complete $GNZDA sentence (format + checksum).
-/// Expected format:  $GNZDA,HHMMSS.CC,DD,MM,YYYY,00,00*XX\r\n
+
+// Validate a complete $GNZDA sentence (format + checksum).
+// Expected format:  $GNZDA,HHMMSS.CC,DD,MM,YYYY,00,00*XX\r\n
 static bool validate_gnzda(const std::string &s) {
 	if (s.size() < 20) {
 		return false;
@@ -162,7 +167,8 @@ static bool validate_gnzda(const std::string &s) {
 	return s.substr(star + 1, 2) == hex;
 }
 
-/// Try to auto-detect the first available USB-serial adapter.
+
+// Try to auto-detect the first available USB-serial adapter.
 static std::string find_serial_port() {
 	for (const char *pattern: { "/dev/ttyUSB*", "/dev/ttyACM*" }) {
 		glob_t gb;
@@ -181,7 +187,7 @@ static std::string find_serial_port() {
 //  Category 1 – RS232Sender basic class tests
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Open → IsOpen → Close round-trip.
+// Open → IsOpen → Close round-trip.
 bool test_sender_open_close() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -198,7 +204,8 @@ bool test_sender_open_close() {
 	return true;
 }
 
-/// Opening a non-existent port must fail gracefully.
+
+// Opening a non-existent port must fail gracefully.
 bool test_sender_open_invalid_port() {
 	ForwarderConfig cfg;
 	cfg.serial_port = "/dev/ttyNONEXISTENT_42";
@@ -210,7 +217,8 @@ bool test_sender_open_invalid_port() {
 	return true;
 }
 
-/// Edge cases: null pointer, zero length, closed port.
+
+// Edge cases: null pointer, zero length, closed port.
 bool test_sender_sendzda_edge_cases() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -227,7 +235,8 @@ bool test_sender_sendzda_edge_cases() {
 	return true;
 }
 
-/// SendGNSSZDA on a closed port must return false.
+
+// SendGNSSZDA on a closed port must return false.
 bool test_sender_sendgnsszda_closed_port() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -243,7 +252,7 @@ bool test_sender_sendgnsszda_closed_port() {
 //  Category 2 – Raw data loopback tests
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Simple ASCII string round-trip through the loopback.
+// Simple ASCII string round-trip through the loopback.
 bool test_raw_loopback_ascii() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -267,7 +276,8 @@ bool test_raw_loopback_ascii() {
 	return true;
 }
 
-/// Full byte-range (0x00–0xFF) round-trip – catches parity/framing issues.
+
+// Full byte-range (0x00–0xFF) round-trip – catches parity/framing issues.
 bool test_raw_loopback_all_bytes() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -292,7 +302,8 @@ bool test_raw_loopback_all_bytes() {
 	return true;
 }
 
-/// Simulate the "direct forward" mode: send a raw $GNZDA sentence as-is.
+
+// Simulate the "direct forward" mode: send a raw $GNZDA sentence as-is.
 bool test_raw_forward_nmea_sentence() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -331,7 +342,7 @@ bool test_raw_forward_nmea_sentence() {
 //  are correct.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// GPS epoch: week 0, ms 0, leap 0  →  1980-01-06 00:00:00.00 UTC
+// GPS epoch: week 0, ms 0, leap 0  →  1980-01-06 00:00:00.00 UTC
 bool test_gnzda_gps_epoch() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -359,8 +370,9 @@ bool test_gnzda_gps_epoch() {
 	return true;
 }
 
-/// Week 2348, ms 0, leap 18  →  2025-01-04 23:59:42.00 UTC
-/// (GPS week 2348 starts 2025-01-05 00:00:00 GPS; minus 18 s → previous day)
+
+// Week 2348, ms 0, leap 18  →  2025-01-04 23:59:42.00 UTC
+// (GPS week 2348 starts 2025-01-05 00:00:00 GPS; minus 18 s → previous day)
 bool test_gnzda_week2348_leap18() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -388,7 +400,8 @@ bool test_gnzda_week2348_leap18() {
 	return true;
 }
 
-/// Week 2348, ms 0, leap 0  →  2025-01-05 00:00:00.00 UTC (no leap offset)
+
+// Week 2348, ms 0, leap 0  →  2025-01-05 00:00:00.00 UTC (no leap offset)
 bool test_gnzda_week2348_no_leap() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -416,9 +429,10 @@ bool test_gnzda_week2348_no_leap() {
 	return true;
 }
 
-/// Centiseconds: week 2348, ms 12340, leap 18
-///   → seconds = 12, centisecond = 340/10 = 34
-///   → 2025-01-04 23:59:54.34 UTC
+
+// Centiseconds: week 2348, ms 12340, leap 18
+//   → seconds = 12, centisecond = 340/10 = 34
+//   → 2025-01-04 23:59:54.34 UTC
 bool test_gnzda_centiseconds() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -443,8 +457,9 @@ bool test_gnzda_centiseconds() {
 	return true;
 }
 
-/// Mid-day: week 2348, ms 43200000 (12 h), leap 18
-///   → 2025-01-05 11:59:42.00 UTC
+
+// Mid-day: week 2348, ms 43200000 (12 h), leap 18
+//   → 2025-01-05 11:59:42.00 UTC
 bool test_gnzda_midday() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -472,9 +487,10 @@ bool test_gnzda_midday() {
 	return true;
 }
 
-/// End-of-week: week 2348, ms 604799000 (last second of the week), leap 18
-///   → GPS: Sat 2025-01-11 23:59:59 GPS
-///   → UTC: Sat 2025-01-11 23:59:41.00 UTC
+
+// End-of-week: week 2348, ms 604799000 (last second of the week), leap 18
+//   → GPS: Sat 2025-01-11 23:59:59 GPS
+//   → UTC: Sat 2025-01-11 23:59:41.00 UTC
 bool test_gnzda_end_of_week() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -502,9 +518,10 @@ bool test_gnzda_end_of_week() {
 	return true;
 }
 
-/// Leap-year date: week 2351, ms 259200000 (Wed, 3 days into week), leap 18
-///   GPS week 2351 starts 2025-01-26.  +3d = 2025-01-29 00:00:00 GPS
-///   UTC: 2025-01-28 23:59:42.00
+
+// Leap-year date: week 2351, ms 259200000 (Wed, 3 days into week), leap 18
+//   GPS week 2351 starts 2025-01-26.  +3d = 2025-01-29 00:00:00 GPS
+//   UTC: 2025-01-28 23:59:42.00
 bool test_gnzda_late_january() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -537,7 +554,7 @@ bool test_gnzda_late_january() {
 //  Category 4 – Multi-message and stress tests
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Send 10 GNZDA messages in rapid succession and verify all arrive intact.
+// Send 10 GNZDA messages in rapid succession and verify all arrive intact.
 bool test_multiple_gnzda_burst() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -581,7 +598,8 @@ bool test_multiple_gnzda_burst() {
 	return true;
 }
 
-/// Interleave raw and GNZDA writes and verify order is preserved.
+
+// Interleave raw and GNZDA writes and verify order is preserved.
 bool test_interleaved_raw_and_gnzda() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
@@ -659,6 +677,7 @@ static bool loopback_at_baud(int baud, int timeout_ms) {
 	return true;
 }
 
+
 bool test_baud_9600() {
 	return loopback_at_baud(9600, 3000);
 }
@@ -714,6 +733,7 @@ bool test_baud_230400() {
 
 using Clock = std::chrono::high_resolution_clock;
 
+
 struct LatencyStats {
 	double min_ms;
 	double max_ms;
@@ -722,29 +742,33 @@ struct LatencyStats {
 	int samples;
 };
 
+
 static LatencyStats compute_stats(std::vector<double> &v) {
 	std::sort(v.begin(), v.end());
 	LatencyStats s{};
-	s.samples   = static_cast<int>(v.size());
-	s.min_ms    = v.front();
-	s.max_ms    = v.back();
+	s.samples = static_cast<int>(v.size());
+	s.min_ms = v.front();
+	s.max_ms = v.back();
 	s.median_ms = v[v.size() / 2];
-	double sum  = 0;
-	for (const double x : v) sum += x;
+	double sum = 0;
+	for (const double x: v)
+		sum += x;
 	s.avg_ms = sum / static_cast<double>(v.size());
 	return s;
 }
 
+
 static void print_stats(const char *label, const LatencyStats &s) {
-	std::fprintf(stderr, "    %-32s min=%7.2f  avg=%7.2f  med=%7.2f  max=%7.2f ms  (%d samples)\n",
-	             label, s.min_ms, s.avg_ms, s.median_ms, s.max_ms, s.samples);
+	std::fprintf(stderr, "    %-32s min=%7.2f  avg=%7.2f  med=%7.2f  max=%7.2f ms  (%d samples)\n", label, s.min_ms, s.avg_ms,
+				 s.median_ms, s.max_ms, s.samples);
 }
 
-/// Measure SendZDA() round-trip latency (direct-forward mode simulation).
+
+// Measure SendZDA() round-trip latency (direct-forward mode simulation).
 bool test_latency_sendzda() {
 	ForwarderConfig cfg;
 	cfg.serial_port = g_serial_port;
-	cfg.baud_rate   = 115200;
+	cfg.baud_rate = 115200;
 
 	RS232Sender sender(cfg);
 	TEST_ASSERT(sender.Open(), "Open()");
@@ -766,7 +790,7 @@ bool test_latency_sendzda() {
 		sender.SendZDA(sentence, len);
 
 		// Wait for first byte to arrive back through loopback
-		pollfd pfd{sender.fd_, POLLIN, 0};
+		pollfd pfd{ sender.fd_, POLLIN, 0 };
 		::poll(&pfd, 1, 2000);
 		const auto t1 = Clock::now();
 
@@ -775,7 +799,8 @@ bool test_latency_sendzda() {
 		std::size_t total = 0;
 		while (total < len) {
 			const ssize_t n = read_with_timeout(sender.fd_, rbuf + total, sizeof(rbuf) - total, 500);
-			if (n <= 0) break;
+			if (n <= 0)
+				break;
 			total += static_cast<std::size_t>(n);
 		}
 		const auto t2 = Clock::now();
@@ -793,19 +818,19 @@ bool test_latency_sendzda() {
 	std::fprintf(stderr, "    SendZDA() latency @ 115200 baud, %d-byte $GNZDA:\n", slen);
 	print_stats("First byte arrival:", fb);
 	print_stats("Full message round-trip:", fm);
-	std::fprintf(stderr, "    Theory wire time (1-way, 8N1):    %.2f ms  (%d bytes * 10 bits / 115200 baud)\n",
-	             theory_ms, slen);
+	std::fprintf(stderr, "    Theory wire time (1-way, 8N1):    %.2f ms  (%d bytes * 10 bits / 115200 baud)\n", theory_ms, slen);
 
 	sender.Close();
 	return true;
 }
 
-/// Measure SendGNSSZDA() end-to-end latency (GNSS compensation mode simulation).
-/// This includes GPS→UTC conversion + NMEA formatting + serial TX + loopback RX.
+
+// Measure SendGNSSZDA() end-to-end latency (GNSS compensation mode simulation).
+// This includes GPS→UTC conversion + NMEA formatting + serial TX + loopback RX.
 bool test_latency_sendgnsszda() {
 	ForwarderConfig cfg;
-	cfg.serial_port          = g_serial_port;
-	cfg.baud_rate            = 115200;
+	cfg.serial_port = g_serial_port;
+	cfg.baud_rate = 115200;
 	cfg.gps_utc_leap_seconds = 18;
 
 	RS232Sender sender(cfg);
@@ -820,7 +845,7 @@ bool test_latency_sendgnsszda() {
 		const auto t0 = Clock::now();
 		sender.SendGNSSZDA(2348, static_cast<std::uint32_t>(i) * 1000);
 
-		pollfd pfd{sender.fd_, POLLIN, 0};
+		pollfd pfd{ sender.fd_, POLLIN, 0 };
 		::poll(&pfd, 1, 2000);
 		const auto t1 = Clock::now();
 
@@ -828,7 +853,8 @@ bool test_latency_sendgnsszda() {
 		std::size_t total = 0;
 		while (total < 38) {  // typical $GNZDA ≈ 38 bytes
 			const ssize_t n = read_with_timeout(sender.fd_, rbuf + total, sizeof(rbuf) - total, 500);
-			if (n <= 0) break;
+			if (n <= 0)
+				break;
 			total += static_cast<std::size_t>(n);
 		}
 		const auto t2 = Clock::now();
@@ -849,21 +875,24 @@ bool test_latency_sendgnsszda() {
 	return true;
 }
 
-/// Compare forwarding latency across baud rates.
+
+// Compare forwarding latency across baud rates.
 bool test_latency_baud_comparison() {
-	struct BaudEntry { int baud; int timeout; };
-	constexpr BaudEntry bauds[] = {{9600, 5000}, {38400, 3000}, {115200, 2000}, {230400, 2000}};
+	struct BaudEntry {
+		int baud;
+		int timeout;
+	};
+	constexpr BaudEntry bauds[] = { { 9600, 5000 }, { 38400, 3000 }, { 115200, 2000 }, { 230400, 2000 } };
 
 	std::fprintf(stderr, "\n");
 	std::fprintf(stderr, "    Baud rate comparison – SendGNSSZDA() first-byte latency (8N1 framing):\n");
-	std::fprintf(stderr, "    %-10s %8s %8s %8s %8s   %s\n",
-	             "Baud", "Min", "Avg", "Median", "Max", "Theory(1-way)");
+	std::fprintf(stderr, "    %-10s %8s %8s %8s %8s   %s\n", "Baud", "Min", "Avg", "Median", "Max", "Theory(1-way)");
 	std::fprintf(stderr, "    ────────── ──────── ──────── ──────── ────────   ─────────────\n");
 
-	for (const auto &[baud, timeout] : bauds) {
+	for (const auto &[baud, timeout]: bauds) {
 		ForwarderConfig cfg;
-		cfg.serial_port          = g_serial_port;
-		cfg.baud_rate            = baud;
+		cfg.serial_port = g_serial_port;
+		cfg.baud_rate = baud;
 		cfg.gps_utc_leap_seconds = 18;
 
 		RS232Sender sender(cfg);
@@ -881,13 +910,14 @@ bool test_latency_baud_comparison() {
 			const auto t0 = Clock::now();
 			sender.SendGNSSZDA(2348, static_cast<std::uint32_t>(i) * 1000);
 
-			pollfd pfd{sender.fd_, POLLIN, 0};
+			pollfd pfd{ sender.fd_, POLLIN, 0 };
 			::poll(&pfd, 1, timeout);
 			const auto t1 = Clock::now();
 
 			// Drain remaining bytes
 			char junk[128];
-			while (read_with_timeout(sender.fd_, junk, sizeof(junk), 200) > 0) {}
+			while (read_with_timeout(sender.fd_, junk, sizeof(junk), 200) > 0) {
+			}
 
 			latencies.push_back(std::chrono::duration<double, std::milli>(t1 - t0).count());
 		}
@@ -896,8 +926,8 @@ bool test_latency_baud_comparison() {
 		// Theory: 38 bytes * 10 bits / baud  (8N1: 1 start + 8 data + 1 stop = 10 bits/byte)
 		const double theory_ms = 38.0 * 10.0 / static_cast<double>(baud) * 1e3;
 
-		std::fprintf(stderr, "    %-10d %7.2f %7.2f %7.2f %7.2f   %.2f ms\n",
-		             baud, s.min_ms, s.avg_ms, s.median_ms, s.max_ms, theory_ms);
+		std::fprintf(stderr, "    %-10d %7.2f %7.2f %7.2f %7.2f   %.2f ms\n", baud, s.min_ms, s.avg_ms, s.median_ms, s.max_ms,
+					 theory_ms);
 
 		sender.Close();
 	}
@@ -905,11 +935,12 @@ bool test_latency_baud_comparison() {
 	return true;
 }
 
-/// Measure per-message latency under burst conditions (back-to-back sends).
+
+// Measure per-message latency under burst conditions (back-to-back sends).
 bool test_latency_burst() {
 	ForwarderConfig cfg;
-	cfg.serial_port          = g_serial_port;
-	cfg.baud_rate            = 115200;
+	cfg.serial_port = g_serial_port;
+	cfg.baud_rate = 115200;
 	cfg.gps_utc_leap_seconds = 18;
 
 	RS232Sender sender(cfg);
@@ -928,7 +959,8 @@ bool test_latency_burst() {
 		std::size_t total = 0;
 		while (total < 38) {
 			const ssize_t n = read_with_timeout(sender.fd_, rbuf + total, sizeof(rbuf) - total, 2000);
-			if (n <= 0) break;
+			if (n <= 0)
+				break;
 			total += static_cast<std::size_t>(n);
 		}
 		const auto t1 = Clock::now();
@@ -942,8 +974,7 @@ bool test_latency_burst() {
 	std::fprintf(stderr, "    Burst latency @ 115200 (%d back-to-back SendGNSSZDA):\n", kCount);
 	print_stats("Per-message round-trip:", s);
 	std::fprintf(stderr, "    Total burst time:                 %.2f ms\n", s.avg_ms * kCount);
-	std::fprintf(stderr, "    Effective throughput:              %.1f msgs/sec\n",
-	             1e3 / s.avg_ms);
+	std::fprintf(stderr, "    Effective throughput:              %.1f msgs/sec\n", 1e3 / s.avg_ms);
 
 	sender.Close();
 	return true;
@@ -980,7 +1011,7 @@ int main(int argc, char *argv[]) {
 				 "============================================================\n"
 				 "  ToD Forwarder  -  Serial Loopback Test Suite\n"
 				 "  Port: %s\n"
-				 "  Hardware: USB-A to DB9, pin 2 <-> pin 3 loopback\n"
+				 "  Hardware: USB-A to DB9 (male), pin 2 <-> pin 3 loopback\n"
 				 "============================================================\n\n",
 				 g_serial_port.c_str());
 
