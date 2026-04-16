@@ -2,7 +2,7 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-A lightweight Linux daemon that discovers [**Aceinna INS401**](https://www.aceinna.com/inertial-systems/INS401) devices over raw Ethernet and forwards their Time-of-Day information to [**CoolShark AUTO66 V2**](https://www.coolshark.com/products/AUTOV3.html) via RS-232 as NMEA time messages.
+A lightweight Linux daemon that discovers [**Aceinna INS401**](https://www.aceinna.com/inertial-systems/INS401) device over raw Ethernet and forwards the Time-of-Day (ToD) information from satellites, as it does not support direct ToD output, to [**CoolShark AUTO66 V2**](https://www.coolshark.com/products/AUTOV3.html) via RS-232 as ZDA format.
 
 <div align="center">
   <img src="./resource/ins401.png" alt="Aceinna INS401" width="45%" height="280" />
@@ -25,8 +25,8 @@ A lightweight Linux daemon that discovers [**Aceinna INS401**](https://www.acein
 - [Build](#build)
 - [Configuration](#configuration)
 - [Run](#run)
-  - [CLI Usage](#cli-usage)
-  - [systemd Service (Autostart Daemon)](#systemd-service-autostart-daemon)
+  - [systemd Service (Autostart Daemon)](#1-option-a-recommand-systemd-service-autostart-daemon)
+  - [CLI Usage](#2-option-b-cli-usage)
 - [Testing](#testing)
   - [Hardware Setup](#hardware-setup)
   - [Build and Run Tests](#build-and-run-tests)
@@ -120,7 +120,7 @@ This produces two executables in the `build/` directory:
 
 ## Configuration
 
-### `tod_forwarder` Configuration
+### 1. `tod_forwarder` Configuration
 
 The application reads a plain-text configuration file. If no path is provided on the command line, it defaults to `../tod-forwarder-config.txt` (relative to the executable itself).
 
@@ -145,7 +145,7 @@ use_gnss_packets = false
 gps_utc_leap_seconds = 18
 ```
 
-### USB-A to RS-232 (Male DB9) Serial Adapter Configuration
+### 2. USB-A to RS-232 (Male DB9) Serial Adapter Configuration
 
 The `tod_forwarder` communicates with the CoolShark AUTO66 V2 time server via an
 RS-232 serial connection. A udev rule creates a stable symlink (`/dev/ttyTOD`)
@@ -204,25 +204,9 @@ to match your own hardware.
 
 ## Run
 
-### CLI Usage
+After finishing the [Build](#build) and [Configuration](#configuration) steps, you can start `tod_forwarder` by following one of the following options.
 
-```bash
-# Using the default config path
-sudo ./build/tod_forwarder
-
-# Using a custom config file
-sudo ./build/tod_forwarder /path/to/config.txt
-```
-
-**Runtime behavior:**
-
-1. **Discovery loop** — repeatedly broadcasts discovery requests on all active non-loopback interfaces, picks the first discovered INS401 device, and starts an `INSDeviceReceiver` for it.
-2. **Forwarding** — depending on `use_gnss_packets`:
-   - `true`: parses binary GNSS solution packets and sends generated `$GNZDA` via RS-232.
-   - `false`: validates and forwards `$--ZDA` NMEA sentences as-is.
-3. **Termination** — press `Ctrl+C` or send `SIGTERM`; the process stops the receiver thread, closes the serial port, and exits cleanly.
-
-### systemd Service (Autostart Daemon)
+### 1. Option A (Recommand): systemd Service (Autostart Daemon)
 
 The repository includes a ready-to-use systemd unit (`tod-forwarder.service`) and a udev rule (`99-tod.rules`). For udev rule setup, see [USB-A to RS-232 Serial Adapter Configuration](#usb-a-to-rs-232-male-db9-serial-adapter-configuration).
 
@@ -246,6 +230,12 @@ AmbientCapabilities=CAP_NET_RAW
 WantedBy=multi-user.target
 ```
 
+**Add to system service:**
+
+```bash
+sudo cp ./tod-forwarder.service /etc/systemd/system/tod-forwarder.service
+```
+
 **Manual service management:**
 
 ```bash
@@ -254,9 +244,59 @@ sudo systemctl restart tod-forwarder.service
 journalctl -u tod-forwarder.service -f
 ```
 
+#### 1.1. One-shot Deployment
+
+> **Important:** Before deploying, ensure you have configured `99-tod.rules`
+> for your USBA-RS-232 adapter. See
+> [USB-A to RS-232 Serial Adapter Configuration](#usb-a-to-rs-232-male-db9-serial-adapter-configuration).
+
+The `Deployment.bash` script performs a complete one-shot build and install:
+
+```bash
+sudo ./Deployment.bash
+```
+
+**What it does:**
+
+1. Cleans and rebuilds the project with CMake.
+2. Installs the udev rule `99-tod.rules` to `/etc/udev/rules.d/` and reloads udev so `/dev/ttyTOD` appears.
+3. Copies the binary to `/opt/tod_forwarder/` and sets the `CAP_NET_RAW` capability.
+4. Copies the default config `tod-forwarder-config.txt` to `/opt/tod_forwarder/`.
+5. Installs, enables, and starts the `tod-forwarder.service` systemd unit.
+
+**Post-deployment verification:**
+
+```bash
+ls -l /dev/ttyTOD
+sudo systemctl status tod-forwarder.service
+journalctl -u tod-forwarder.service -f
+```
+
+After this, ToD Forwarder starts automatically at boot and uses `/dev/ttyTOD` as its RS-232 output port.
+
 ---
 
-## Testing
+### 2. Option B: CLI Usage
+
+```bash
+# Using the default config path
+sudo ./build/tod_forwarder
+
+# Using a custom config file
+sudo ./build/tod_forwarder /path/to/config.txt
+```
+
+**Runtime behavior:**
+
+1. **Discovery loop** — repeatedly broadcasts discovery requests on all active non-loopback interfaces, picks the first discovered INS401 device, and starts an `INSDeviceReceiver` for it.
+2. **Forwarding** — depending on `use_gnss_packets`:
+   - `true`: parses binary GNSS solution packets and sends generated `$GNZDA` via RS-232.
+   - `false`: validates and forwards `$--ZDA` NMEA sentences as-is.
+3. **Termination** — press `Ctrl+C` or send `SIGTERM`; the process stops the receiver thread, closes the serial port, and exits cleanly.
+
+---
+
+## Testing (experimental)
 
 The test suite verifies serial data forwarding correctness **without requiring an INS401 device**. It uses a physical RS-232 loopback to exercise the `RS232Sender` class end-to-end: open/close, raw data integrity, `$GNZDA` generation, GPS-to-UTC conversion, NMEA checksum, and multi-message burst delivery.
 
@@ -306,7 +346,7 @@ sudo ./test_serial_loopback /dev/ttyUSB0
 
 ### Latency Benchmarks
 
-Category 6 measures real-world forwarding delay through the physical loopback. For detailed methodology (timing model, theoretical wire-time calculations, and baud-rate comparisons), see [`docs/latency-benchmarks.md`](./docs/latency-benchmarks.md).
+Category 6 measures real-world forwarding delay through the physical loopback.
 
 <details>
 <summary>Example test output</summary>
@@ -350,38 +390,6 @@ Category 6 measures real-world forwarding delay through the physical loopback. F
 ```
 
 </details>
-
----
-
-## Deployment
-
-> **Important:** Before deploying, ensure you have configured `99-tod.rules`
-> for your USB-RS-232 adapter. See
-> [USB-A to RS-232 Serial Adapter Configuration](#usb-a-to-rs-232-male-db9-serial-adapter-configuration).
-
-The `Deployment.bash` script performs a complete one-shot build and install:
-
-```bash
-sudo ./Deployment.bash
-```
-
-**What it does:**
-
-1. Cleans and rebuilds the project with CMake.
-2. Installs the udev rule `99-tod.rules` to `/etc/udev/rules.d/` and reloads udev so `/dev/ttyTOD` appears.
-3. Copies the binary to `/opt/tod_forwarder/` and sets the `CAP_NET_RAW` capability.
-4. Copies the default config `tod-forwarder-config.txt` to `/opt/tod_forwarder/`.
-5. Installs, enables, and starts the `tod-forwarder.service` systemd unit.
-
-**Post-deployment verification:**
-
-```bash
-ls -l /dev/ttyTOD
-sudo systemctl status tod-forwarder.service
-journalctl -u tod-forwarder.service -f
-```
-
-After this, ToD Forwarder starts automatically at boot and uses `/dev/ttyTOD` as its RS-232 output port.
 
 ---
 
