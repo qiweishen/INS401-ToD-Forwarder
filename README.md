@@ -1,6 +1,7 @@
 # ToD (Time of Day) Forwarder
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![Ubuntu Build](https://github.com/qiweishen/INS401-ToD-Forwarder/actions/workflows/ubuntu-build.yml/badge.svg)
 
 A lightweight Linux daemon that discovers [**Aceinna INS401**](https://www.aceinna.com/inertial-systems/INS401) device over raw Ethernet and forwards the Time-of-Day (ToD) information from satellites, as it does not support direct ToD output, to [**CoolShark AUTO66 V2**](https://www.coolshark.com/products/AUTOV3.html) via RS-232 as ZDA format.
 
