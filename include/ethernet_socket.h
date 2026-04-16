@@ -1,13 +1,8 @@
-/// @file ethernet_socket.h
-/// @brief Raw Ethernet socket abstraction and Aceinna packet-level utilities for INS401 communication.
-
 #ifndef ETHERNET_SOCKET_H
 #define ETHERNET_SOCKET_H
 
 #include <array>
 #include <cstdint>
-#include <cstdio>
-#include <cstring>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -70,21 +65,21 @@ public:
 		return *this;
 	}
 
-	[[nodiscard]] std::ptrdiff_t Send(const std::vector<uint8_t> &frame) const;
+	std::ptrdiff_t Send(const std::vector<uint8_t> &frame) const;
 
-	[[nodiscard]] std::optional<EthernetFrame> Receive(int timeout_ms = -1) const;
+	std::optional<EthernetFrame> Receive(int timeout_ms = -1) const;
 
-	[[nodiscard]] std::vector<EthernetFrame> ReceiveBatch(std::size_t max_frames = 64) const;
+	std::vector<EthernetFrame> ReceiveBatch(std::size_t max_frames = 64) const;
 
-	[[nodiscard]] MacAddress GetLocalMac() const { return local_mac_; }
+	MacAddress GetLocalMac() const { return local_mac_; }
 
-	[[nodiscard]] MacAddress GetTargetMac() const { return target_mac_; }
+	MacAddress GetTargetMac() const { return target_mac_; }
 
-	[[nodiscard]] std::string GetInterface() const { return interface_name_; }
+	std::string GetInterface() const { return interface_name_; }
 
-	[[nodiscard]] int GetFd() const { return socket_fd_; }
+	int GetFd() const { return socket_fd_; }
 
-	[[nodiscard]] bool IsValid() const { return socket_fd_ >= 0; }
+	bool IsValid() const { return socket_fd_ >= 0; }
 
 private:
 	void CreateSocket();
@@ -155,28 +150,27 @@ namespace Ethernet {
 		int fd_;
 	};
 
-	[[nodiscard]] std::vector<std::pair<std::string, std::string> > GetNetworkInterfaces();
+	std::vector<std::pair<std::string, std::string> > GetNetworkInterfaces();
 
 	bool SetupBpfFilter(MacAddress target_mac, MacAddress local_mac, int socket_fd);
 
-	/// Build a complete Aceinna Ethernet frame with the following wire layout:
-	/// [DstMAC(6) | SrcMAC(6) | EthLen(2) | 0x5555(2) | MsgID(2) | PayloadLen(4) | Payload(N) | CRC16(2) | Pad]
-	[[nodiscard]] std::vector<uint8_t> BuildAceinnaPacket(MacAddress target_mac, MacAddress local_mac,
-														  std::array<uint8_t, 2> message_id, const uint8_t *payload,
-														  size_t payload_length);
+	// Build a complete Aceinna Ethernet frame with the following wire layout:
+	// [DstMAC(6) | SrcMAC(6) | EthLen(2) | 0x5555(2) | MsgID(2) | PayloadLen(4) | Payload(N) | CRC16(2) | Pad]
+	std::vector<uint8_t> BuildAceinnaPacket(MacAddress target_mac, MacAddress local_mac, std::array<uint8_t, 2> message_id,
+											const uint8_t *payload, size_t payload_length);
 
-	[[nodiscard]] std::string ParseMacAddress(const std::array<uint8_t, 6> &mac_uint8);
+	std::string ParseMacAddress(const std::array<uint8_t, 6> &mac_uint8);
 
-	[[nodiscard]] std::string ParseMacAddress(const uint8_t *mac_ptr);
+	std::string ParseMacAddress(const uint8_t *mac_ptr);
 
-	[[nodiscard]] std::array<uint8_t, 6> FormatMACAddress(std::string mac_str);
+	std::array<uint8_t, 6> FormatMACAddress(std::string mac_str);
 
 	namespace CRC {
-		/// CRC-16/CCITT (poly 0x1021, init 0x1D0F). Returns byte-swapped per INS401 LSB-first wire format.
-		[[nodiscard]] uint16_t CalculateINS401_CRC16(const uint8_t *buf, std::size_t length);
+		// CRC-16/CCITT (poly 0x1021, init 0x1D0F). Returns byte-swapped per INS401 LSB-first wire format.
+		uint16_t CalculateINS401_CRC16(const uint8_t *buf, std::size_t length);
 
-		/// CRC-24Q as defined by the RTCM3 standard (poly 0x1864CFB).
-		[[nodiscard]] uint32_t CalculateRTCM3_CRC24(const void *data, std::size_t nBytes);
+		// CRC-24Q as defined by the RTCM3 standard (poly 0x1864CFB).
+		uint32_t CalculateRTCM3_CRC24(const void *data, std::size_t nBytes);
 	}  // namespace CRC
 }  // namespace Ethernet
 

@@ -1,6 +1,3 @@
-/// @file ins401_protocol.h
-/// @brief INS401 Ethernet protocol constants: message IDs, payload sizes, and precomputed byte arrays.
-
 #ifndef INS401_PROTOCOL_H
 #define INS401_PROTOCOL_H
 

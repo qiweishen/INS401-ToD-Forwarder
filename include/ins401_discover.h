@@ -1,5 +1,5 @@
-#ifndef INS_DISCOVER_H
-#define INS_DISCOVER_H
+#ifndef INS401_DISCOVER_H
+#define INS401_DISCOVER_H
 
 #include <array>
 #include <atomic>
@@ -7,7 +7,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <vector>
 
 #include "ethernet_socket.h"
 

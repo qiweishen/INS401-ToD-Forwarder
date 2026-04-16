@@ -1,5 +1,5 @@
-#ifndef INS_RECEIVER_H
-#define INS_RECEIVER_H
+#ifndef INS401_RECEIVER_H
+#define INS401_RECEIVER_H
 
 #include <atomic>
 #include <cstdint>
@@ -24,7 +24,7 @@ public:
 
 	void Stop();
 
-	[[nodiscard]] bool IsRunning() const { return running_.load(); }
+	bool IsRunning() const { return running_.load(); }
 
 	using ToDCallback = std::function<void(std::uint16_t gps_week, std::uint32_t gps_millisecs)>;
 	using NmeaZdaCallback = std::function<void(const char *data, std::size_t len)>;

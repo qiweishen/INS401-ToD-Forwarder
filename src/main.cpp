@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -14,71 +13,69 @@
 #include "rs232_sender.h"
 
 
-namespace {
-	constexpr std::string_view kDefaultConfigPath = "../tod-forwarder-config.txt";
+constexpr std::string_view kDefaultConfigPath = "../tod-forwarder-config.txt";
 
-	std::atomic<bool> g_terminate{ false };
+std::atomic<bool> g_terminate{ false };
 
-	void SignalHandler(int) {
-		// Second signal: force immediate exit.
-		if (g_terminate.load(std::memory_order_relaxed)) {
-			std::fprintf(stderr, "\n[tod_forwarder] forced exit\n");
-			std::_Exit(1);
-		}
-		g_terminate.store(true, std::memory_order_release);
+void SignalHandler(int) {
+	// Second signal: force immediate exit.
+	if (g_terminate.load(std::memory_order_relaxed)) {
+		std::fprintf(stderr, "\n[tod_forwarder] forced exit\n");
+		std::_Exit(1);
 	}
+	g_terminate.store(true, std::memory_order_release);
+}
 
-	std::string Trim(const std::string &s) {
-		const auto start = s.find_first_not_of(" \t\r\n");
-		if (start == std::string::npos)
-			return {};
-		return s.substr(start, s.find_last_not_of(" \t\r\n") - start + 1);
+std::string Trim(const std::string &s) {
+	const auto start = s.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos)
+		return {};
+	return s.substr(start, s.find_last_not_of(" \t\r\n") - start + 1);
+}
+
+int SafeStoi(const std::string &value, int fallback) {
+	try {
+		return std::stoi(value);
+	} catch (const std::exception &) {
+		std::fprintf(stderr, "[tod_forwarder] WARNING: invalid integer '%s', using default %d\n", value.c_str(), fallback);
+		return fallback;
 	}
+}
 
-	int SafeStoi(const std::string &value, int fallback) {
-		try {
-			return std::stoi(value);
-		} catch (const std::exception &) {
-			std::fprintf(stderr, "[tod_forwarder] WARNING: invalid integer '%s', using default %d\n", value.c_str(), fallback);
-			return fallback;
-		}
-	}
-
-	ForwarderConfig ParseConfig(const std::string &path) {
-		ForwarderConfig config;
-		std::ifstream file(path);
-		if (!file.is_open()) {
-			std::fprintf(stderr, "[tod_forwarder] WARNING: cannot open config '%s', using defaults\n", path.c_str());
-			return config;
-		}
-
-		std::string line;
-		while (std::getline(file, line)) {
-			line = Trim(line);
-			if (line.empty() || line[0] == '#') {
-				continue;
-			}
-			const auto eq = line.find('=');
-			if (eq == std::string::npos) {
-				continue;
-			}
-
-			std::string key = Trim(line.substr(0, eq));
-			std::string value = Trim(line.substr(eq + 1));
-
-			if (key == "serial_port") {
-				config.serial_port = value;
-			} else if (key == "baud_rate") {
-				config.baud_rate = SafeStoi(value, config.baud_rate);
-			} else if (key == "use_gnss_packets") {
-				config.use_gnss_packets = (value == "true" || value == "1");
-			} else if (key == "gps_utc_leap_seconds") {
-				config.gps_utc_leap_seconds = SafeStoi(value, config.gps_utc_leap_seconds);
-			}
-		}
+ForwarderConfig ParseConfig(const std::string &path) {
+	ForwarderConfig config;
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		std::fprintf(stderr, "[tod_forwarder] WARNING: cannot open config '%s', using defaults\n", path.c_str());
 		return config;
 	}
-}  // namespace
+
+	std::string line;
+	while (std::getline(file, line)) {
+		line = Trim(line);
+		if (line.empty() || line[0] == '#') {
+			continue;
+		}
+		const auto eq = line.find('=');
+		if (eq == std::string::npos) {
+			continue;
+		}
+
+		std::string key = Trim(line.substr(0, eq));
+		std::string value = Trim(line.substr(eq + 1));
+
+		if (key == "serial_port") {
+			config.serial_port = value;
+		} else if (key == "baud_rate") {
+			config.baud_rate = SafeStoi(value, config.baud_rate);
+		} else if (key == "use_gnss_packets") {
+			config.use_gnss_packets = (value == "true" || value == "1");
+		} else if (key == "gps_utc_leap_seconds") {
+			config.gps_utc_leap_seconds = SafeStoi(value, config.gps_utc_leap_seconds);
+		}
+	}
+	return config;
+}
 
 
 int main(int argc, char *argv[]) {

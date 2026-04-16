@@ -29,7 +29,6 @@
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <glob.h>
