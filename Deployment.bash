@@ -14,7 +14,7 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 
 sudo systemctl stop tod-forwarder.service || true
-sudo rm -f /opt/tod-forwarder
+sudo rm -rf /opt/tod-forwarder
 sudo mkdir /opt/tod-forwarder
 sudo cp "$SCRIPT_DIR/build/tod_forwarder" /opt/tod-forwarder
 sudo setcap cap_net_raw+ep /opt/tod-forwarder/tod_forwarder
